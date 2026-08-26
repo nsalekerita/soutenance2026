@@ -1,24 +1,57 @@
 import 'package:flutter/material.dart';
-import 'core/theme/app_theme.dart';
-import 'core/services/session_service.dart';
-import 'screens/home/splash_screen.dart';
+import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 
-Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  await SessionService.instance.loadFromDisk();
-  runApp(const IAIHorizonApp());
+import 'core/router/app_router.dart';
+import 'core/services/auth_provider.dart';
+import 'theme/app_colors.dart';
+
+void main() {
+  runApp(const IaiHorizonApp());
 }
 
-class IAIHorizonApp extends StatelessWidget {
-  const IAIHorizonApp({super.key});
+class IaiHorizonApp extends StatefulWidget {
+  const IaiHorizonApp({super.key});
+
+  @override
+  State<IaiHorizonApp> createState() => _IaiHorizonAppState();
+}
+
+class _IaiHorizonAppState extends State<IaiHorizonApp> {
+  late final AuthProvider _authProvider;
+  late final GoRouter _router;
+
+  @override
+  void initState() {
+    super.initState();
+    _authProvider = AuthProvider();
+    _router = buildAppRouter(_authProvider);
+    // Tente de restaurer la session (token stocké de façon sécurisée) au démarrage.
+    _authProvider.tryAutoLogin();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'IAI Horizon',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.light,
-      home: const SplashScreen(),
+    return ChangeNotifierProvider<AuthProvider>.value(
+      value: _authProvider,
+      child: MaterialApp.router(
+        title: 'IAI Horizon',
+        debugShowCheckedModeBanner: false,
+        theme: ThemeData(
+          useMaterial3: true,
+          fontFamily: 'Roboto',
+          colorScheme: ColorScheme.fromSeed(seedColor: AppColors.darkGreen, primary: AppColors.darkGreen, secondary: AppColors.gold),
+          scaffoldBackgroundColor: AppColors.background,
+          appBarTheme: const AppBarTheme(centerTitle: false),
+          inputDecorationTheme: InputDecorationTheme(
+            filled: true,
+            fillColor: AppColors.white,
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+          ),
+        ),
+        routerConfig: _router,
+      ),
     );
   }
 }

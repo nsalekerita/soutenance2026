@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
-import '../../core/theme/app_colors.dart';
-import '../auth/login_screen.dart';
-import '../auth/register_screen.dart';
-import '../offers/offers_list_screen.dart';
+import 'package:go_router/go_router.dart';
+import '../../theme/app_colors.dart';
 
+/// Page d'accueil publique de la plateforme IAI Horizon.
+/// Reprend fidèlement la structure fournie (TopBar / NavBar / Hero /
+/// Explore / Announcements / Join / Footer), avec la navigation branchée
+/// vers l'écran de choix "Étudiant / Entreprise" (inscription-connexion).
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
@@ -11,7 +13,6 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final width = MediaQuery.of(context).size.width;
     final isWide = width > 900;
-
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -34,13 +35,12 @@ class HomeScreen extends StatelessWidget {
   }
 }
 
-// ---------------------------------------------------------------
+// ------------------------------------------------------------------------
 // BARRE SUPERIEURE : logo (gauche), "IAI Horizon" (centre), recherche + langue (droite)
-// ---------------------------------------------------------------
+// ------------------------------------------------------------------------
 class _TopBar extends StatelessWidget {
   final bool isWide;
   const _TopBar({required this.isWide});
-
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -50,10 +50,7 @@ class _TopBar extends StatelessWidget {
         children: [
           Expanded(
             flex: isWide ? 3 : 2,
-            child: const Align(
-              alignment: Alignment.centerLeft,
-              child: _InstituteLogo(),
-            ),
+            child: const Align(alignment: Alignment.centerLeft, child: _InstituteLogo()),
           ),
           Expanded(
             flex: isWide ? 4 : 3,
@@ -78,7 +75,6 @@ class _TopBar extends StatelessWidget {
 
 class _SearchBar extends StatelessWidget {
   const _SearchBar();
-
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -99,7 +95,7 @@ class _SearchBar extends StatelessWidget {
                 isDense: true,
                 border: InputBorder.none,
                 hintText: 'Rechercher une filiere, un metier...',
-                hintStyle: const TextStyle(fontSize: 12, color: AppColors.textMuted),
+                hintStyle: TextStyle(fontSize: 12, color: AppColors.textMuted),
               ),
               style: const TextStyle(fontSize: 12),
             ),
@@ -112,7 +108,6 @@ class _SearchBar extends StatelessWidget {
 
 class _LanguageSwitcher extends StatelessWidget {
   const _LanguageSwitcher();
-
   @override
   Widget build(BuildContext context) {
     return DropdownButtonHideUnderline(
@@ -132,7 +127,6 @@ class _LanguageSwitcher extends StatelessWidget {
 
 class _HorizonWordmark extends StatelessWidget {
   const _HorizonWordmark();
-
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -163,7 +157,6 @@ class _HorizonWordmark extends StatelessWidget {
 
 class _InstituteLogo extends StatelessWidget {
   const _InstituteLogo();
-
   @override
   Widget build(BuildContext context) {
     return Row(
@@ -172,15 +165,9 @@ class _InstituteLogo extends StatelessWidget {
         Container(
           width: 26,
           height: 26,
-          decoration: BoxDecoration(
-            color: AppColors.darkGreen,
-            borderRadius: BorderRadius.circular(6),
-          ),
+          decoration: BoxDecoration(color: AppColors.darkGreen, borderRadius: BorderRadius.circular(6)),
           alignment: Alignment.center,
-          child: const Text(
-            'IAI',
-            style: TextStyle(color: AppColors.gold, fontSize: 8, fontWeight: FontWeight.bold),
-          ),
+          child: const Text('IAI', style: TextStyle(color: AppColors.gold, fontSize: 8, fontWeight: FontWeight.bold)),
         ),
         const SizedBox(width: 6),
         const Flexible(
@@ -195,24 +182,20 @@ class _InstituteLogo extends StatelessWidget {
   }
 }
 
-// ---------------------------------------------------------------
+// ------------------------------------------------------------------------
 // MENU DE NAVIGATION
-// ---------------------------------------------------------------
+// ------------------------------------------------------------------------
 class _NavBar extends StatelessWidget {
   final bool isWide;
   const _NavBar({required this.isWide});
-
   @override
   Widget build(BuildContext context) {
-    final items = <Widget>[
+    final items = <_NavItem>[
       const _NavItem('Accueil'),
       const _NavItem('A propos'),
-      _NavItem('Offres & stages', onTap: () {
-        Navigator.push(context, MaterialPageRoute(builder: (_) => const OffersListScreen()));
-      }),
+      const _NavItem('Offres & stages'),
       const _NavItem('Orientation metiers'),
     ];
-
     return Container(
       color: AppColors.darkGreen,
       padding: EdgeInsets.symmetric(horizontal: isWide ? 32 : 12, vertical: 10),
@@ -222,17 +205,9 @@ class _NavBar extends StatelessWidget {
         children: [
           ...items,
           const SizedBox(width: 32),
-          _AuthAction(
-            label: 'Se connecter',
-            filled: false,
-            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LoginScreen())),
-          ),
+          _AuthAction(label: 'Se connecter', filled: false, onTap: () => context.go('/auth/login')),
           const SizedBox(width: 12),
-          _AuthAction(
-            label: "S'inscrire",
-            filled: true,
-            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RegisterScreen())),
-          ),
+          _AuthAction(label: "S'inscrire", filled: true, onTap: () => context.go('/auth')),
         ],
       )
           : SingleChildScrollView(
@@ -241,17 +216,9 @@ class _NavBar extends StatelessWidget {
           children: [
             ...items,
             const SizedBox(width: 16),
-            _AuthAction(
-              label: 'Se connecter',
-              filled: false,
-              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LoginScreen())),
-            ),
+            _AuthAction(label: 'Se connecter', filled: false, onTap: () => context.go('/auth/login')),
             const SizedBox(width: 8),
-            _AuthAction(
-              label: "S'inscrire",
-              filled: true,
-              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RegisterScreen())),
-            ),
+            _AuthAction(label: "S'inscrire", filled: true, onTap: () => context.go('/auth')),
           ],
         ),
       ),
@@ -261,19 +228,14 @@ class _NavBar extends StatelessWidget {
 
 class _NavItem extends StatelessWidget {
   final String label;
-  final VoidCallback? onTap;
-  const _NavItem(this.label, {this.onTap});
-
+  const _NavItem(this.label);
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 14),
       child: InkWell(
-        onTap: onTap ?? () {},
-        child: Text(
-          label,
-          style: const TextStyle(color: AppColors.white, fontSize: 13, fontWeight: FontWeight.w500),
-        ),
+        onTap: () {},
+        child: Text(label, style: const TextStyle(color: AppColors.white, fontSize: 13, fontWeight: FontWeight.w500)),
       ),
     );
   }
@@ -284,7 +246,6 @@ class _AuthAction extends StatelessWidget {
   final bool filled;
   final VoidCallback onTap;
   const _AuthAction({required this.label, required this.filled, required this.onTap});
-
   @override
   Widget build(BuildContext context) {
     if (filled) {
@@ -302,21 +263,17 @@ class _AuthAction extends StatelessWidget {
     }
     return TextButton(
       onPressed: onTap,
-      child: Text(
-        label,
-        style: const TextStyle(color: AppColors.gold, fontSize: 13, fontWeight: FontWeight.w600),
-      ),
+      child: Text(label, style: const TextStyle(color: AppColors.gold, fontSize: 13, fontWeight: FontWeight.w600)),
     );
   }
 }
 
-// ---------------------------------------------------------------
+// ------------------------------------------------------------------------
 // SECTION 1 : HERO
-// ---------------------------------------------------------------
+// ------------------------------------------------------------------------
 class _HeroSection extends StatelessWidget {
   final bool isWide;
   const _HeroSection({required this.isWide});
-
   @override
   Widget build(BuildContext context) {
     final textBlock = Column(
@@ -344,7 +301,13 @@ class _HeroSection extends StatelessWidget {
         Row(
           children: [
             ElevatedButton(
-              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RegisterScreen())),
+              onPressed: () => context.go('/auth'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.darkGreen,
+                foregroundColor: AppColors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
               child: const Text('Commencer'),
             ),
             const SizedBox(width: 12),
@@ -362,7 +325,6 @@ class _HeroSection extends StatelessWidget {
         ),
       ],
     );
-
     final imageBlock = Container(
       height: isWide ? 320 : 200,
       decoration: BoxDecoration(
@@ -371,9 +333,10 @@ class _HeroSection extends StatelessWidget {
         border: Border.all(color: const Color(0xFFC0DD97)),
       ),
       alignment: Alignment.center,
-      child: const Icon(Icons.school_outlined, size: 64, color: AppColors.darkGreenLight),
+      child: const Icon(Icons.auto_awesome, size: 56, color: AppColors.darkGreen),
+      // NB: remplace ce placeholder par `DecorationImage(image: AssetImage('assets/image/imgyde.png'))`
+      // une fois l'image ajoutée dans assets/image/ et déclarée dans pubspec.yaml.
     );
-
     return Container(
       color: AppColors.white,
       padding: EdgeInsets.symmetric(horizontal: isWide ? 32 : 16, vertical: isWide ? 48 : 28),
@@ -391,13 +354,12 @@ class _HeroSection extends StatelessWidget {
   }
 }
 
-// ---------------------------------------------------------------
+// ------------------------------------------------------------------------
 // SECTION 2 : GRID
-// ---------------------------------------------------------------
+// ------------------------------------------------------------------------
 class _ExploreSection extends StatelessWidget {
   final bool isWide;
   const _ExploreSection({required this.isWide});
-
   @override
   Widget build(BuildContext context) {
     final cards = [
@@ -417,7 +379,6 @@ class _ExploreSection extends StatelessWidget {
         subtitle: "L'intelligence artificielle analyse ton profil pour te proposer la filiere qui te correspond le mieux.",
       ),
     ];
-
     return Container(
       color: AppColors.background,
       padding: EdgeInsets.symmetric(horizontal: isWide ? 32 : 16, vertical: isWide ? 40 : 24),
@@ -444,7 +405,6 @@ class _ExploreCard extends StatelessWidget {
   final String title;
   final String subtitle;
   const _ExploreCard({required this.icon, required this.title, required this.subtitle});
-
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -452,7 +412,7 @@ class _ExploreCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.cardGrey.withValues(alpha: 0.6)),
+        border: Border.all(color: AppColors.cardGrey.withOpacity(0.6)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -473,27 +433,34 @@ class _ExploreCard extends StatelessWidget {
   }
 }
 
-// ---------------------------------------------------------------
+// ------------------------------------------------------------------------
 // SECTION 3 : ANNONCES
-// ---------------------------------------------------------------
+// ------------------------------------------------------------------------
 class _AnnouncementsSection extends StatelessWidget {
   final bool isWide;
   const _AnnouncementsSection({required this.isWide});
-
   @override
   Widget build(BuildContext context) {
     final announcements = [
-      const _Announcement(
-          tag: 'Stage', tagColor: Color(0xFF27500A), tagBg: Color(0xFFEAF3DE),
-          title: 'Developpeur mobile Flutter', location: 'Douala, Cameroun'),
-      const _Announcement(
-          tag: 'Formation', tagColor: Color(0xFF633806), tagBg: Color(0xFFFAEEDA),
-          title: 'Certification en intelligence artificielle', location: 'En ligne'),
-      const _Announcement(
-          tag: 'Emploi', tagColor: Color(0xFF04342C), tagBg: Color(0xFFE1F5EE),
-          title: 'Data analyst junior', location: 'Yaounde, Cameroun'),
+      _Announcement(
+          tag: 'Stage',
+          tagColor: const Color(0xFF27500A),
+          tagBg: const Color(0xFFEAF3DE),
+          title: 'Developpeur mobile Flutter',
+          location: 'Douala, Cameroun'),
+      _Announcement(
+          tag: 'Formation',
+          tagColor: const Color(0xFF633806),
+          tagBg: const Color(0xFFFAEEDA),
+          title: 'Certification en intelligence artificielle',
+          location: 'En ligne'),
+      _Announcement(
+          tag: 'Emploi',
+          tagColor: const Color(0xFF04342C),
+          tagBg: const Color(0xFFE1F5EE),
+          title: 'Data analyst junior',
+          location: 'Yaounde, Cameroun'),
     ];
-
     return Container(
       color: AppColors.white,
       padding: EdgeInsets.symmetric(horizontal: isWide ? 32 : 16, vertical: isWide ? 40 : 24),
@@ -507,12 +474,8 @@ class _AnnouncementsSection extends StatelessWidget {
               style: TextStyle(fontSize: 13, color: AppColors.textMuted)),
           const SizedBox(height: 20),
           isWide
-              ? Row(
-            children: announcements.map((a) => Expanded(child: Padding(padding: const EdgeInsets.only(right: 16), child: a))).toList(),
-          )
-              : Column(
-            children: announcements.map((a) => Padding(padding: const EdgeInsets.only(bottom: 16), child: a)).toList(),
-          ),
+              ? Row(children: announcements.map((a) => Expanded(child: Padding(padding: const EdgeInsets.only(right: 16), child: a))).toList())
+              : Column(children: announcements.map((a) => Padding(padding: const EdgeInsets.only(bottom: 16), child: a)).toList()),
         ],
       ),
     );
@@ -526,33 +489,37 @@ class _Announcement extends StatelessWidget {
   final String title;
   final String location;
   const _Announcement({required this.tag, required this.tagColor, required this.tagBg, required this.title, required this.location});
-
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.cardGrey.withValues(alpha: 0.6)),
-      ),
+      decoration: BoxDecoration(borderRadius: BorderRadius.circular(12), border: Border.all(color: AppColors.cardGrey.withOpacity(0.6))),
+      clipBehavior: Clip.antiAlias,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(color: tagBg, borderRadius: BorderRadius.circular(20)),
-            child: Text(tag, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: tagColor)),
-          ),
-          const SizedBox(height: 10),
-          Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.textDark)),
-          const SizedBox(height: 4),
-          Row(
-            children: [
-              const Icon(Icons.place_outlined, size: 14, color: AppColors.textMuted),
-              const SizedBox(width: 4),
-              Text(location, style: const TextStyle(fontSize: 12, color: AppColors.textMuted)),
-            ],
+          Container(height: 100, color: AppColors.cardGrey),
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(color: tagBg, borderRadius: BorderRadius.circular(10)),
+                  child: Text(tag, style: TextStyle(fontSize: 10, color: tagColor, fontWeight: FontWeight.w600)),
+                ),
+                const SizedBox(height: 8),
+                Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.textDark)),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    const Icon(Icons.location_on_outlined, size: 13, color: AppColors.textMuted),
+                    const SizedBox(width: 4),
+                    Text(location, style: const TextStyle(fontSize: 12, color: AppColors.textMuted)),
+                  ],
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -560,31 +527,61 @@ class _Announcement extends StatelessWidget {
   }
 }
 
-// ---------------------------------------------------------------
-// SECTION JOIN + FOOTER
-// ---------------------------------------------------------------
+// ------------------------------------------------------------------------
+// SECTION 4 : APPEL A L'INSCRIPTION
+// ------------------------------------------------------------------------
 class _JoinSection extends StatelessWidget {
   final bool isWide;
   const _JoinSection({required this.isWide});
+  @override
+  Widget build(BuildContext context) {
+    final joinCards = [
+      _JoinCard(icon: Icons.school_outlined, text: "Inscris-toi si tu es etudiant(e)", onTap: () => context.go('/auth?role=etudiant')),
+      _JoinCard(icon: Icons.apartment_outlined, text: 'Inscris-toi si tu es une entreprise', onTap: () => context.go('/auth?role=entreprise'))
+    ];
+    return Container(
+      color: AppColors.darkGreen,
+      padding: EdgeInsets.symmetric(horizontal: isWide ? 32 : 16, vertical: isWide ? 44 : 28),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Rejoins la communaute IAI Horizon', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: AppColors.white)),
+          const SizedBox(height: 4),
+          const Text('Quel que soit ton profil, la plateforme a ete pensee pour toi', style: TextStyle(fontSize: 13, color: Color(0xFFD7E9DE))),
+          const SizedBox(height: 20),
+          isWide
+              ? Row(children: joinCards.map((c) => Expanded(child: Padding(padding: const EdgeInsets.only(right: 16), child: c))).toList())
+              : Column(children: joinCards.map((c) => Padding(padding: const EdgeInsets.only(bottom: 12), child: c)).toList()),
+        ],
+      ),
+    );
+  }
+}
 
+class _JoinCard extends StatelessWidget {
+  final IconData icon;
+  final String text;
+  final VoidCallback onTap;
+  const _JoinCard({required this.icon, required this.text, required this.onTap});
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: AppColors.darkGreen,
-      padding: EdgeInsets.symmetric(horizontal: isWide ? 32 : 16, vertical: isWide ? 48 : 32),
+      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 14),
+      decoration: BoxDecoration(color: Colors.white.withOpacity(0.08), borderRadius: BorderRadius.circular(12)),
       child: Column(
         children: [
-          const Text('Prêt à construire ton avenir professionnel ?',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: AppColors.white, fontSize: 20, fontWeight: FontWeight.w800)),
-          const SizedBox(height: 8),
-          const Text('Rejoins IAI Horizon et decouvre la filiere qui te correspond.',
-              textAlign: TextAlign.center, style: TextStyle(color: Color(0xFFDCE8E0), fontSize: 13)),
-          const SizedBox(height: 20),
-          ElevatedButton(
-            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RegisterScreen())),
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.gold, foregroundColor: AppColors.darkGreen),
-            child: const Text("S'inscrire gratuitement"),
+          Icon(icon, color: AppColors.gold, size: 30),
+          const SizedBox(height: 10),
+          Text(text, textAlign: TextAlign.center, style: const TextStyle(fontSize: 13, color: AppColors.white, fontWeight: FontWeight.w500)),
+          const SizedBox(height: 12),
+          OutlinedButton(
+            onPressed: onTap,
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.gold,
+              side: const BorderSide(color: AppColors.gold),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            ),
+            child: const Text("S'inscrire", style: TextStyle(fontSize: 12)),
           ),
         ],
       ),
@@ -592,19 +589,83 @@ class _JoinSection extends StatelessWidget {
   }
 }
 
+// ------------------------------------------------------------------------
+// FOOTER
+// ------------------------------------------------------------------------
 class _Footer extends StatelessWidget {
   final bool isWide;
   const _Footer({required this.isWide});
-
   @override
   Widget build(BuildContext context) {
+    final description = Expanded(
+      flex: isWide ? 4 : 0,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('IAI Horizon', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.gold)),
+          const SizedBox(height: 10),
+          const Text(
+            "Une plateforme intelligente d'orientation academique et d'insertion "
+                "professionnelle pour les etudiants de l'Institut Africain d'Informatique (IAI-Cameroun). "
+                "Elle propose des recommandations personnalisees, des offres de stage et d'emploi, ainsi "
+                "qu'un accompagnement continu grace a l'intelligence artificielle.",
+            style: TextStyle(fontSize: 12, color: Color(0xFFB4B2A9), height: 1.6),
+          ),
+        ],
+      ),
+    );
+    final about = Expanded(
+      flex: isWide ? 3 : 0,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: const [
+          Text('A propos', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.white)),
+          SizedBox(height: 10),
+          Text('Notre mission', style: TextStyle(fontSize: 12, color: Color(0xFFB4B2A9), height: 2)),
+          Text("L'equipe du projet", style: TextStyle(fontSize: 12, color: Color(0xFFB4B2A9), height: 2)),
+          Text("Partenaires de l'IAI", style: TextStyle(fontSize: 12, color: Color(0xFFB4B2A9), height: 2)),
+        ],
+      ),
+    );
+    final contact = Expanded(
+      flex: isWide ? 3 : 0,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: const [
+          Text('Contact', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.white)),
+          SizedBox(height: 10),
+          Text('contact@iaihorizon.cm', style: TextStyle(fontSize: 12, color: Color(0xFFB4B2A9), height: 2)),
+          Text('Douala, Cameroun', style: TextStyle(fontSize: 12, color: Color(0xFFB4B2A9), height: 2)),
+          Text('+237 671 681 076', style: TextStyle(fontSize: 12, color: Color(0xFFB4B2A9), height: 2)),
+        ],
+      ),
+    );
     return Container(
-      color: const Color(0xFF08402A),
-      padding: EdgeInsets.symmetric(horizontal: isWide ? 32 : 16, vertical: 24),
-      alignment: Alignment.center,
-      child: const Text(
-        '© 2026 IAI Horizon — Institut Africain d\'Informatique, Cameroun',
-        style: TextStyle(color: Color(0xFFB9CFC2), fontSize: 12),
+      color: const Color(0xFF2C2C2A),
+      padding: EdgeInsets.symmetric(horizontal: isWide ? 32 : 16, vertical: 28),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          isWide
+              ? Row(crossAxisAlignment: CrossAxisAlignment.start, children: [description, const SizedBox(width: 32), about, const SizedBox(width: 32), contact])
+              : Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [description.child]),
+              const SizedBox(height: 20),
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [about.child]),
+              const SizedBox(height: 20),
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [contact.child]),
+            ],
+          ),
+          const SizedBox(height: 24),
+          const Divider(color: Color(0xFF444441)),
+          const SizedBox(height: 12),
+          const Text(
+            "© 2026 IAI Horizon — Institut Africain d'Informatique, Cameroun. Tous droits reserves.",
+            style: TextStyle(fontSize: 11, color: Color(0xFF888780)),
+          ),
+        ],
       ),
     );
   }

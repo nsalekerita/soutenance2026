@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
-import '../../core/theme/app_colors.dart';
-import 'home_screen.dart';
+import 'package:go_router/go_router.dart';
+import '../../theme/app_colors.dart';
 
-/// Ecran de lancement : le logo tourne sur un fond professionnel (degrade vert fonce)
-/// avant d'afficher la page d'accueil, comme demande dans le cahier des charges.
+/// Écran affiché au lancement de l'app : logo qui tourne sur un fond
+/// "professionnel" (dégradé vert institutionnel + touche or), avant de
+/// rediriger automatiquement vers la page d'accueil (HomeScreen).
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -19,11 +20,9 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     super.initState();
     _controller = AnimationController(vsync: this, duration: const Duration(seconds: 2))..repeat();
 
-    Future.delayed(const Duration(milliseconds: 2200), () {
-      if (!mounted) return;
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
-      );
+    // Après l'animation d'ouverture, on part vers la page d'accueil publique.
+    Future.delayed(const Duration(milliseconds: 2400), () {
+      if (mounted) context.go('/');
     });
   }
 
@@ -37,11 +36,13 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
+        width: double.infinity,
+        height: double.infinity,
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [AppColors.darkGreen, Color(0xFF08402A)],
+            colors: [AppColors.darkGreen, AppColors.darkGreenLight],
           ),
         ),
         child: Center(
@@ -51,19 +52,26 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
               RotationTransition(
                 turns: _controller,
                 child: Container(
-                  width: 90,
-                  height: 90,
+                  width: 96,
+                  height: 96,
                   decoration: BoxDecoration(
                     color: AppColors.white,
-                    borderRadius: BorderRadius.circular(20),
+                    borderRadius: BorderRadius.circular(24),
                     boxShadow: [
-                      BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 20, offset: const Offset(0, 8)),
+                      BoxShadow(color: Colors.black.withOpacity(0.25), blurRadius: 24, offset: const Offset(0, 8)),
                     ],
                   ),
                   alignment: Alignment.center,
-                  child: const Text(
-                    'IAI',
-                    style: TextStyle(color: AppColors.darkGreen, fontSize: 22, fontWeight: FontWeight.w900),
+                  padding: const EdgeInsets.all(16), // évite que le logo touche les bords
+                  child: Image.asset(
+                    'assets/image/logoIAI.jpg',
+                    fit: BoxFit.contain,
+                    // Si le logo n'est pas encore présent dans assets/image/,
+                    // on retombe sur le texte "IAI" pour ne pas planter l'app.
+                    errorBuilder: (_, __, ___) => const Text(
+                      'IAI',
+                      style: TextStyle(color: AppColors.gold, fontSize: 26, fontWeight: FontWeight.w900, letterSpacing: 1),
+                    ),
                   ),
                 ),
               ),
@@ -79,8 +87,14 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
               ),
               const SizedBox(height: 8),
               const Text(
-                'Orientation academique & insertion professionnelle',
-                style: TextStyle(color: Color(0xFFDCE8E0), fontSize: 12),
+                "Institut Africain d'Informatique — Cameroun",
+                style: TextStyle(color: Color(0xFFD7E9DE), fontSize: 12),
+              ),
+              const SizedBox(height: 28),
+              const SizedBox(
+                width: 28,
+                height: 28,
+                child: CircularProgressIndicator(strokeWidth: 2.4, color: AppColors.gold),
               ),
             ],
           ),
