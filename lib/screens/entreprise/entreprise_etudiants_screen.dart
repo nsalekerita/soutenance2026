@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../core/services/api_client.dart';
 import '../../theme/app_colors.dart';
+import 'entreprise_chat_screen.dart';
 
-/// Permet à l'entreprise de consulter les profils des étudiants
-/// (compétences, formation, centres d'intérêt, expériences) afin
-/// d'identifier les candidats correspondant à ses besoins.
+/// Affiche la liste de tous les étudiants ayant postulé aux offres de l'entreprise.
 class EntrepriseEtudiantsScreen extends StatefulWidget {
   const EntrepriseEtudiantsScreen({super.key});
 
@@ -14,7 +13,7 @@ class EntrepriseEtudiantsScreen extends StatefulWidget {
 
 class _EntrepriseEtudiantsScreenState extends State<EntrepriseEtudiantsScreen> {
   final _searchCtrl = TextEditingController();
-  List<dynamic> _etudiants = [];
+  List<dynamic> _candidatures = [];
   List<dynamic> _filtres = [];
   bool _loading = true;
 
@@ -36,12 +35,12 @@ class _EntrepriseEtudiantsScreenState extends State<EntrepriseEtudiantsScreen> {
     if (!mounted) return;
     setState(() => _loading = true);
     try {
-      // Adapter la route à ton API : liste des profils étudiants visibles.
-      final data = await ApiClient.instance.get('/etudiants/profils');
+      // On récupère toutes les candidatures liées à cette entreprise
+      final data = await ApiClient.instance.get('/candidatures/tous');
       if (!mounted) return;
       setState(() {
-        _etudiants = data is List<dynamic> ? data : <dynamic>[];
-        _filtres = _etudiants;
+        _candidatures = data is List<dynamic> ? data : <dynamic>[];
+        _filtres = _candidatures;
       });
     } catch (e) {
       if (!mounted) return;
@@ -55,26 +54,25 @@ class _EntrepriseEtudiantsScreenState extends State<EntrepriseEtudiantsScreen> {
     final q = _searchCtrl.text.trim().toLowerCase();
     setState(() {
       if (q.isEmpty) {
-        _filtres = _etudiants;
+        _filtres = _candidatures;
         return;
       }
-      _filtres = _etudiants.where((e) {
-        final nom = (e['nom_complet'] ?? e['nom'] ?? '').toString().toLowerCase();
-        final formation = (e['formation'] ?? '').toString().toLowerCase();
-        final competences = ((e['competences'] as List<dynamic>?) ?? [])
-            .map((c) => c.toString().toLowerCase())
-            .join(' ');
-        return nom.contains(q) || formation.contains(q) || competences.contains(q);
+      _filtres = _candidatures.where((c) {
+        final etudiant = c['etudiants'] ?? {};
+        final offre = c['offres'] ?? {};
+        final nom = '${etudiant['prenom'] ?? ''} ${etudiant['nom'] ?? ''}'.toLowerCase();
+        final titreOffre = (offre['titre'] ?? '').toString().toLowerCase();
+        return nom.contains(q) || titreOffre.contains(q);
       }).toList();
     });
   }
 
-  void _voirProfil(dynamic etudiant) {
+  void _voirProfil(dynamic candidature) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => _ProfilEtudiantSheet(etudiant: etudiant),
+      builder: (_) => _ProfilCandidatSheet(candidature: candidature),
     );
   }
 
@@ -87,7 +85,7 @@ class _EntrepriseEtudiantsScreenState extends State<EntrepriseEtudiantsScreen> {
           child: TextField(
             controller: _searchCtrl,
             decoration: InputDecoration(
-              hintText: 'Rechercher par nom, formation, compétence...',
+              hintText: 'Rechercher un candidat ou une offre...',
               prefixIcon: const Icon(Icons.search),
               filled: true,
               fillColor: AppColors.white,
@@ -102,17 +100,21 @@ class _EntrepriseEtudiantsScreenState extends State<EntrepriseEtudiantsScreen> {
           child: _loading
               ? const Center(child: CircularProgressIndicator())
               : _filtres.isEmpty
-                  ? const Center(child: Text('Aucun étudiant trouvé.', style: TextStyle(color: AppColors.textMuted)))
+                  ? const Center(child: Text('Aucun candidat trouvé.', style: TextStyle(color: AppColors.textMuted)))
                   : RefreshIndicator(
                       onRefresh: _load,
                       child: ListView.builder(
                         padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
                         itemCount: _filtres.length,
                         itemBuilder: (context, i) {
-                          final e = _filtres[i];
-                          final competences = (e['competences'] as List<dynamic>?) ?? [];
+                          final c = _filtres[i];
+                          final e = c['etudiants'] ?? {};
+                          final o = c['offres'] ?? {};
+                          final nom = '${e['prenom'] ?? ''} ${e['nom'] ?? ''}'.trim();
+                          final statut = c['statut'] ?? 'en_attente';
+
                           return InkWell(
-                            onTap: () => _voirProfil(e),
+                            onTap: () => _voirProfil(c),
                             borderRadius: BorderRadius.circular(12),
                             child: Container(
                               margin: const EdgeInsets.only(bottom: 12),
@@ -121,10 +123,10 @@ class _EntrepriseEtudiantsScreenState extends State<EntrepriseEtudiantsScreen> {
                               child: Row(
                                 children: [
                                   CircleAvatar(
-                                    radius: 22,
+                                    radius: 24,
                                     backgroundColor: AppColors.darkGreen.withOpacity(0.1),
                                     child: Text(
-                                      (e['nom_complet'] ?? e['nom'] ?? '?').toString().substring(0, 1).toUpperCase(),
+                                      nom.isNotEmpty ? nom.substring(0, 1).toUpperCase() : '?',
                                       style: const TextStyle(color: AppColors.darkGreen, fontWeight: FontWeight.w700),
                                     ),
                                   ),
@@ -134,28 +136,25 @@ class _EntrepriseEtudiantsScreenState extends State<EntrepriseEtudiantsScreen> {
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
                                         Text(
-                                          e['nom_complet'] ?? e['nom'] ?? 'Étudiant',
+                                          nom.isNotEmpty ? nom : 'Étudiant',
                                           style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.textDark),
                                         ),
-                                        if (e['formation'] != null)
-                                          Text(e['formation'], style: const TextStyle(fontSize: 12, color: AppColors.textMuted)),
-                                        if (competences.isNotEmpty) ...[
-                                          const SizedBox(height: 6),
-                                          Wrap(
-                                            spacing: 6,
-                                            runSpacing: 6,
-                                            children: competences.take(3).map((c) {
-                                              return Container(
-                                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                                decoration: BoxDecoration(
-                                                  color: AppColors.darkGreen.withOpacity(0.08),
-                                                  borderRadius: BorderRadius.circular(6),
-                                                ),
-                                                child: Text(c.toString(), style: const TextStyle(fontSize: 11, color: AppColors.darkGreen)),
-                                              );
-                                            }).toList(),
+                                        Text(
+                                          'A postulé pour : ${o['titre'] ?? 'Offre inconnue'}',
+                                          style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: _statutColor(statut).withOpacity(0.1),
+                                            borderRadius: BorderRadius.circular(4),
                                           ),
-                                        ],
+                                          child: Text(
+                                            statut.toUpperCase(),
+                                            style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: _statutColor(statut)),
+                                          ),
+                                        ),
                                       ],
                                     ),
                                   ),
@@ -171,36 +170,30 @@ class _EntrepriseEtudiantsScreenState extends State<EntrepriseEtudiantsScreen> {
       ],
     );
   }
+
+  Color _statutColor(String statut) {
+    switch (statut) {
+      case 'acceptee': return Colors.green;
+      case 'refusee': return Colors.red;
+      case 'envoyee': return Colors.blue;
+      default: return Colors.orange;
+    }
+  }
 }
 
-/// Détail complet du profil d'un étudiant, affiché en bottom sheet.
-class _ProfilEtudiantSheet extends StatelessWidget {
-  final dynamic etudiant;
-  const _ProfilEtudiantSheet({required this.etudiant});
-
-  Widget _section(String titre, Widget content) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 18),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(titre, style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.darkGreen, fontSize: 14)),
-          const SizedBox(height: 8),
-          content,
-        ],
-      ),
-    );
-  }
+class _ProfilCandidatSheet extends StatelessWidget {
+  final dynamic candidature;
+  const _ProfilCandidatSheet({required this.candidature});
 
   @override
   Widget build(BuildContext context) {
-    final competences = (etudiant['competences'] as List<dynamic>?) ?? [];
-    final centresInteret = (etudiant['centres_interet'] as List<dynamic>?) ?? [];
-    final experiences = (etudiant['experiences'] as List<dynamic>?) ?? [];
+    final e = candidature['etudiants'] ?? {};
+    final o = candidature['offres'] ?? {};
+    final nom = '${e['prenom'] ?? ''} ${e['nom'] ?? ''}'.trim();
 
     return DraggableScrollableSheet(
-      initialChildSize: 0.75,
-      maxChildSize: 0.95,
+      initialChildSize: 0.6,
+      maxChildSize: 0.9,
       minChildSize: 0.4,
       expand: false,
       builder: (context, scrollCtrl) {
@@ -213,88 +206,76 @@ class _ProfilEtudiantSheet extends StatelessWidget {
             controller: scrollCtrl,
             padding: const EdgeInsets.all(24),
             children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2)),
-                ),
-              ),
+              Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2)))),
               const SizedBox(height: 20),
-              Text(
-                etudiant['nom_complet'] ?? etudiant['nom'] ?? 'Étudiant',
-                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: AppColors.textDark),
-              ),
-              if (etudiant['formation'] != null) ...[
-                const SizedBox(height: 4),
-                Text(etudiant['formation'], style: const TextStyle(color: AppColors.textMuted)),
-              ],
-              const SizedBox(height: 20),
-              if (etudiant['bio'] != null) _section('À propos', Text(etudiant['bio'], style: const TextStyle(color: AppColors.textDark))),
-              if (competences.isNotEmpty)
-                _section(
-                  'Compétences',
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: competences.map((c) {
-                      return Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                        decoration: BoxDecoration(color: AppColors.darkGreen.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
-                        child: Text(c.toString(), style: const TextStyle(color: AppColors.darkGreen, fontSize: 12)),
-                      );
-                    }).toList(),
+              Text(nom.isNotEmpty ? nom : 'Étudiant', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppColors.textDark)),
+              Text(e['filiere'] ?? 'Filière non précisée', style: const TextStyle(color: AppColors.textMuted)),
+              const Divider(height: 32),
+              _item('Offre concernée', o['titre'] ?? 'Inconnue'),
+              _item('Statut actuel', candidature['statut'] ?? 'En attente'),
+              if (candidature['message'] != null && candidature['message'].toString().isNotEmpty)
+                _item('Message d\'accompagnement', candidature['message']),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        // Gestion robuste : Supabase peut renvoyer un objet ou une liste pour la jointure
+                        final etudiantRaw = candidature['etudiants'];
+                        final etudiant = (etudiantRaw is List && etudiantRaw.isNotEmpty) 
+                            ? etudiantRaw.first 
+                            : (etudiantRaw is Map ? etudiantRaw : {});
+                        
+                        final userId = etudiant['user_id'];
+                        
+                        if (userId == null) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Erreur : Identifiant utilisateur introuvable pour ce candidat.'))
+                          );
+                          return;
+                        }
+
+                        Navigator.pop(context);
+                        Navigator.of(context).push(MaterialPageRoute(
+                          builder: (_) => EntrepriseChatScreen(
+                            etudiantId: userId.toString(),
+                            etudiantNom: nom,
+                          ),
+                        ));
+                      },
+                      icon: const Icon(Icons.chat_bubble_outline),
+                      label: const Text('Contacter'),
+                    ),
                   ),
-                ),
-              if (centresInteret.isNotEmpty)
-                _section(
-                  'Centres d\'intérêt',
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: centresInteret.map((c) => Chip(label: Text(c.toString()))).toList(),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: ElevatedButton.styleFrom(backgroundColor: AppColors.darkGreen, foregroundColor: Colors.white),
+                      child: const Text('Fermer'),
+                    ),
                   ),
-                ),
-              if (experiences.isNotEmpty)
-                _section(
-                  'Expériences',
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: experiences.map<Widget>((exp) {
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 10),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(exp['titre'] ?? '', style: const TextStyle(fontWeight: FontWeight.w600, color: AppColors.textDark)),
-                            if (exp['entreprise'] != null)
-                              Text(exp['entreprise'], style: const TextStyle(fontSize: 12, color: AppColors.textMuted)),
-                            if (exp['periode'] != null)
-                              Text(exp['periode'], style: const TextStyle(fontSize: 12, color: AppColors.textMuted)),
-                          ],
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                ),
-              const SizedBox(height: 10),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: () => Navigator.of(context).pop(),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.darkGreen,
-                    foregroundColor: AppColors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                  ),
-                  icon: const Icon(Icons.close),
-                  label: const Text('Fermer'),
-                ),
+                ],
               ),
             ],
           ),
         );
       },
+    );
+  }
+
+  Widget _item(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.darkGreen)),
+          const SizedBox(height: 4),
+          Text(value, style: const TextStyle(fontSize: 15, color: AppColors.textDark)),
+        ],
+      ),
     );
   }
 }

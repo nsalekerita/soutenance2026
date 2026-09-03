@@ -78,7 +78,7 @@ class AuthProvider extends ChangeNotifier {
     String? telephone,
     required String password,
   }) async {
-    final data = await _api.post(
+    await _api.post(
       '/auth/register/etudiant',
       {
         'nom': nom,
@@ -90,8 +90,7 @@ class AuthProvider extends ChangeNotifier {
       },
       auth: false,
     );
-
-    await _afterAuthSuccess(data);
+    // On ne connecte pas automatiquement l'utilisateur après l'inscription
   }
 
   Future<void> registerEntreprise({
@@ -101,7 +100,7 @@ class AuthProvider extends ChangeNotifier {
     String? secteur,
     required String password,
   }) async {
-    final data = await _api.post(
+    await _api.post(
       '/auth/register/entreprise',
       {
         'nom': nom,
@@ -114,8 +113,7 @@ class AuthProvider extends ChangeNotifier {
       },
       auth: false,
     );
-
-    await _afterAuthSuccess(data);
+    // On ne connecte pas automatiquement l'utilisateur après l'inscription
   }
 
   Future<void> login({

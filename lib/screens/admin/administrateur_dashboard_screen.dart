@@ -16,10 +16,12 @@ class _AdministrateurDashboardScreenState extends State<AdministrateurDashboardS
   static const _items = [
     NavEntry(Icons.bar_chart_outlined, 'Statistiques'),
     NavEntry(Icons.list_alt_outlined, 'Offres à valider'),
+    NavEntry(Icons.people_outline, 'Gestion des comptes'),
   ];
 
   Map<String, dynamic>? _stats;
   List<dynamic> _offres = [];
+  List<dynamic> _comptes = [];
   bool _loading = true;
 
   @override
@@ -32,28 +34,21 @@ class _AdministrateurDashboardScreenState extends State<AdministrateurDashboardS
     if (!mounted) return;
     setState(() => _loading = true);
     try {
-      // On restaure /admin/ car le serveur ne connaît pas /administrateur/
       final stats = await ApiClient.instance.get('/admin/stats');
       
-      var response = await ApiClient.instance.get('/admin/offres?statut=en_attente');
-      List<dynamic> fetchedOffres = _extractList(response);
+      // Load offres
+      var responseOffres = await ApiClient.instance.get('/admin/offres?statut=en_attente');
+      List<dynamic> fetchedOffres = _extractList(responseOffres);
 
-      if (fetchedOffres.isEmpty) {
-        debugPrint('Administrateur: Liste "en_attente" vide, tentative sans filtre...');
-        final allRes = await ApiClient.instance.get('/admin/offres');
-        final allList = _extractList(allRes);
-        fetchedOffres = allList.where((o) => 
-          o['statut'] == 'en_attente' || 
-          o['statut'] == 'PENDING' || 
-          o['statut'] == null ||
-          o['statut'] == ''
-        ).toList();
-      }
+      // Load comptes
+      var responseComptes = await ApiClient.instance.get('/admin/comptes');
+      List<dynamic> fetchedComptes = _extractList(responseComptes);
 
       if (mounted) {
         setState(() {
           _stats = stats;
           _offres = fetchedOffres;
+          _comptes = fetchedComptes;
         });
       }
     } catch (e) {
@@ -69,12 +64,12 @@ class _AdministrateurDashboardScreenState extends State<AdministrateurDashboardS
   List<dynamic> _extractList(dynamic res) {
     if (res is List) return res;
     if (res is Map) {
-      return res['offres'] ?? res['data'] ?? res['items'] ?? res['results'] ?? [];
+      return res['offres'] ?? res['comptes'] ?? res['data'] ?? res['items'] ?? res['results'] ?? [];
     }
     return [];
   }
 
-  Future<void> _valider(String id, String statut) async {
+  Future<void> _validerOffre(String id, String statut) async {
     try {
       await ApiClient.instance.patch('/admin/offres/$id/statut', {'statut': statut});
       if (mounted) {
@@ -93,8 +88,69 @@ class _AdministrateurDashboardScreenState extends State<AdministrateurDashboardS
     }
   }
 
+  Future<void> _toggleEtatCompte(dynamic compte) async {
+    final bool estActif = compte['actif'] ?? true;
+    final String action = estActif ? 'bloquer' : 'debloquer';
+    try {
+      await ApiClient.instance.patch('/admin/comptes/${compte['id']}/$action', {});
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Compte ${estActif ? 'bloqué' : 'débloqué'} avec succès')),
+        );
+      }
+      _load();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur: $e')));
+      }
+    }
+  }
+
+  Future<void> _supprimerCompte(String id) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Confirmer la suppression'),
+        content: const Text('Êtes-vous sûr de vouloir supprimer ce compte définitivement ?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Annuler')),
+          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Supprimer', style: TextStyle(color: Colors.red))),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    try {
+      await ApiClient.instance.delete('/admin/comptes/$id');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Compte supprimé')));
+      }
+      _load();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur suppression: $e')));
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    Widget content;
+    switch (_index) {
+      case 0:
+        content = _buildStats();
+        break;
+      case 1:
+        content = _buildOffresAValider();
+        break;
+      case 2:
+        content = _buildGestionComptes();
+        break;
+      default:
+        content = const SizedBox();
+    }
+
     return DashboardShell(
       title: 'Administrateur',
       items: _items,
@@ -111,7 +167,7 @@ class _AdministrateurDashboardScreenState extends State<AdministrateurDashboardS
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
               onRefresh: _load,
-              child: _index == 0 ? _buildStats() : _buildOffresAValider(),
+              child: content,
             ),
     );
   }
@@ -149,22 +205,7 @@ class _AdministrateurDashboardScreenState extends State<AdministrateurDashboardS
 
   Widget _buildOffresAValider() {
     if (_offres.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.inventory_2_outlined, size: 64, color: AppColors.textMuted),
-            const SizedBox(height: 16),
-            const Text('Aucune offre en attente.', style: TextStyle(color: AppColors.textMuted, fontSize: 16)),
-            if (_stats != null) ...[
-              const SizedBox(height: 8),
-              Text('Total en base : ${_stats!['nbOffres'] ?? 0}', style: const TextStyle(fontSize: 12, color: Colors.grey)),
-            ],
-            const SizedBox(height: 20),
-            ElevatedButton(onPressed: _load, child: const Text('Recharger')),
-          ],
-        ),
-      );
+      return _buildEmptyState('Aucune offre en attente.');
     }
     return ListView.builder(
       padding: const EdgeInsets.all(20),
@@ -183,7 +224,7 @@ class _AdministrateurDashboardScreenState extends State<AdministrateurDashboardS
               children: [
                 Text(o['entreprise']?['nom'] ?? o['entreprises']?['nom'] ?? 'Entreprise inconnue'),
                 const SizedBox(height: 4),
-                Text('Statut actuel: ${o['statut']}', style: const TextStyle(fontSize: 11, color: AppColors.gold)),
+                Text('Statut: ${o['statut']}', style: const TextStyle(fontSize: 11, color: AppColors.gold)),
               ],
             ),
             trailing: Row(
@@ -191,13 +232,13 @@ class _AdministrateurDashboardScreenState extends State<AdministrateurDashboardS
               children: [
                 IconButton(
                   icon: const Icon(Icons.visibility_outlined, color: AppColors.darkGreen),
-                  onPressed: () => _showDetails(o),
-                  tooltip: 'Voir les détails',
+                  onPressed: () => _showOffreDetails(o),
+                  tooltip: 'Voir',
                 ),
                 IconButton(icon: const Icon(Icons.check_circle, color: Colors.green), 
-                  onPressed: () => _valider(o['id'].toString(), 'validee')),
+                  onPressed: () => _validerOffre(o['id'].toString(), 'validee')),
                 IconButton(icon: const Icon(Icons.cancel, color: Colors.red), 
-                  onPressed: () => _valider(o['id'].toString(), 'rejetee')),
+                  onPressed: () => _validerOffre(o['id'].toString(), 'rejetee')),
               ],
             ),
           ),
@@ -206,7 +247,71 @@ class _AdministrateurDashboardScreenState extends State<AdministrateurDashboardS
     );
   }
 
-  void _showDetails(dynamic o) {
+  Widget _buildGestionComptes() {
+    if (_comptes.isEmpty) {
+      return _buildEmptyState('Aucun compte trouvé.');
+    }
+    return ListView.builder(
+      padding: const EdgeInsets.all(20),
+      itemCount: _comptes.length,
+      itemBuilder: (context, i) {
+        final c = _comptes[i];
+        final bool estActif = c['actif'] ?? true;
+        return Card(
+          margin: const EdgeInsets.only(bottom: 12),
+          elevation: 0,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: Colors.grey.shade200)),
+          child: ListTile(
+            leading: CircleAvatar(
+              backgroundColor: c['role'] == 'entreprise' ? AppColors.gold.withOpacity(0.2) : AppColors.darkGreen.withOpacity(0.2),
+              child: Icon(c['role'] == 'entreprise' ? Icons.business : Icons.person, 
+                color: c['role'] == 'entreprise' ? AppColors.gold : AppColors.darkGreen),
+            ),
+            title: Text(c['email'] ?? 'Sans email', style: const TextStyle(fontWeight: FontWeight.bold)),
+            subtitle: Text('Rôle: ${c['role']} • ${estActif ? 'Actif' : 'Bloqué'}', 
+              style: TextStyle(color: estActif ? Colors.green : Colors.red, fontSize: 12)),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.visibility_outlined),
+                  onPressed: () => _showCompteDetails(c),
+                  tooltip: 'Consulter',
+                ),
+                IconButton(
+                  icon: Icon(estActif ? Icons.block : Icons.check_circle_outline, color: estActif ? Colors.orange : Colors.green),
+                  onPressed: () => _toggleEtatCompte(c),
+                  tooltip: estActif ? 'Bloquer' : 'Débloquer',
+                ),
+                IconButton(
+                  icon: const Icon(Icons.delete_outline, color: Colors.red),
+                  onPressed: () => _supprimerCompte(c['id'].toString()),
+                  tooltip: 'Supprimer',
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildEmptyState(String message) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.inventory_2_outlined, size: 64, color: AppColors.textMuted),
+          const SizedBox(height: 16),
+          Text(message, style: const TextStyle(color: AppColors.textMuted, fontSize: 16)),
+          const SizedBox(height: 20),
+          ElevatedButton(onPressed: _load, child: const Text('Recharger')),
+        ],
+      ),
+    );
+  }
+
+  void _showOffreDetails(dynamic o) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -228,15 +333,12 @@ class _AdministrateurDashboardScreenState extends State<AdministrateurDashboardS
           ),
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Fermer'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Fermer')),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
             onPressed: () {
               Navigator.pop(context);
-              _valider(o['id'].toString(), 'rejetee');
+              _validerOffre(o['id'].toString(), 'rejetee');
             },
             child: const Text('Rejeter'),
           ),
@@ -244,10 +346,33 @@ class _AdministrateurDashboardScreenState extends State<AdministrateurDashboardS
             style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
             onPressed: () {
               Navigator.pop(context);
-              _valider(o['id'].toString(), 'validee');
+              _validerOffre(o['id'].toString(), 'validee');
             },
             child: const Text('Valider'),
           ),
+        ],
+      ),
+    );
+  }
+
+  void _showCompteDetails(dynamic c) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Détails du compte'),
+        content: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _detailRow(Icons.email_outlined, 'Email', c['email'] ?? ''),
+            _detailRow(Icons.badge_outlined, 'Rôle', c['role'] ?? ''),
+            _detailRow(Icons.info_outline, 'Statut', (c['actif'] ?? true) ? 'Actif' : 'Bloqué'),
+            _detailRow(Icons.calendar_today, 'Créé le', c['created_at'] != null ? DateTime.parse(c['created_at']).toLocal().toString().split(' ')[0] : 'Inconnue'),
+            _detailRow(Icons.fingerprint, 'ID', c['id'] ?? ''),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Fermer')),
         ],
       ),
     );

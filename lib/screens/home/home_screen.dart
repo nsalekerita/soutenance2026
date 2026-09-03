@@ -1,33 +1,70 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../theme/app_colors.dart';
+import '../../core/services/api_client.dart';
 
 /// Page d'accueil publique de la plateforme IAI Horizon.
-/// Reprend fidèlement la structure fournie (TopBar / NavBar / Hero /
-/// Explore / Announcements / Join / Footer), avec la navigation branchée
-/// vers l'écran de choix "Étudiant / Entreprise" (inscription-connexion).
-class HomeScreen extends StatelessWidget {
+/// Désormais dynamique : charge les dernières offres et annonces depuis le backend.
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  final _api = ApiClient.instance;
+  List<dynamic> _recentOffres = [];
+  bool _loading = true;
+  int _totalJobs = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    setState(() => _loading = true);
+    try {
+      // On récupère les offres publiques
+      final data = await _api.get('/offres', auth: false);
+      if (data is List) {
+        setState(() {
+          _recentOffres = data.take(3).toList();
+          _totalJobs = data.length;
+        });
+      }
+    } catch (e) {
+      debugPrint('Erreur chargement home publique: $e');
+    } finally {
+      setState(() => _loading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final width = MediaQuery.of(context).size.width;
     final isWide = width > 900;
+    
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _TopBar(isWide: isWide),
-              _NavBar(isWide: isWide),
-              _HeroSection(isWide: isWide),
-              _ExploreSection(isWide: isWide),
-              _AnnouncementsSection(isWide: isWide),
-              _JoinSection(isWide: isWide),
-              _Footer(isWide: isWide),
-            ],
+        child: RefreshIndicator(
+          onRefresh: _loadData,
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _TopBar(isWide: isWide),
+                _NavBar(isWide: isWide),
+                _HeroSection(isWide: isWide),
+                _ExploreSection(isWide: isWide, totalJobs: _totalJobs),
+                _AnnouncementsSection(isWide: isWide, offres: _recentOffres, loading: _loading),
+                _JoinSection(isWide: isWide),
+                _Footer(isWide: isWide),
+              ],
+            ),
           ),
         ),
       ),
@@ -36,7 +73,7 @@ class HomeScreen extends StatelessWidget {
 }
 
 // ------------------------------------------------------------------------
-// BARRE SUPERIEURE : logo (gauche), "IAI Horizon" (centre), recherche + langue (droite)
+// BARRE SUPERIEURE
 // ------------------------------------------------------------------------
 class _TopBar extends StatelessWidget {
   final bool isWide;
@@ -94,7 +131,7 @@ class _SearchBar extends StatelessWidget {
               decoration: InputDecoration(
                 isDense: true,
                 border: InputBorder.none,
-                hintText: 'Rechercher une filiere, un metier...',
+                hintText: 'Rechercher une filière...',
                 hintStyle: TextStyle(fontSize: 12, color: AppColors.textMuted),
               ),
               style: const TextStyle(fontSize: 12),
@@ -116,7 +153,7 @@ class _LanguageSwitcher extends StatelessWidget {
         icon: const Icon(Icons.keyboard_arrow_down, size: 16),
         style: const TextStyle(fontSize: 12, color: AppColors.darkGreen, fontWeight: FontWeight.w600),
         items: const [
-          DropdownMenuItem(value: 'FR', child: Text('Francais')),
+          DropdownMenuItem(value: 'FR', child: Text('Français')),
           DropdownMenuItem(value: 'EN', child: Text('English')),
         ],
         onChanged: (_) {},
@@ -192,9 +229,9 @@ class _NavBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final items = <_NavItem>[
       const _NavItem('Accueil'),
-      const _NavItem('A propos'),
+      const _NavItem('À propos'),
       const _NavItem('Offres & stages'),
-      const _NavItem('Orientation metiers'),
+      const _NavItem('Orientation métiers'),
     ];
     return Container(
       color: AppColors.darkGreen,
@@ -285,16 +322,14 @@ class _HeroSection extends StatelessWidget {
         ),
         const SizedBox(height: 12),
         const Text(
-          "Bienvenue sur la plateforme mobile intelligente basee sur l'intelligence artificielle",
+          "Bienvenue sur la plateforme mobile intelligente basée sur l'intelligence artificielle",
           style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: AppColors.darkGreen, height: 1.3),
         ),
         const SizedBox(height: 14),
         const Text(
-          "Concue pour accompagner les etudiants de l'Institut Africain d'Informatique (IAI-Cameroun) "
-              "dans leur orientation academique et leur insertion professionnelle. Grace a des recommandations "
-              "personnalisees, elle aide chaque etudiant a choisir sa filiere selon son profil et a decouvrir "
-              "des opportunites de stage et d'emploi adaptees a ses competences. Elle facilite ainsi la transition "
-              "entre formation academique et vie professionnelle.",
+          "Conçue pour accompagner les étudiants de l'Institut Africain d'Informatique (IAI-Cameroun) "
+              "dans leur orientation académique et leur insertion professionnelle. Grâce à des recommandations "
+              "personnalisées, elle aide chaque étudiant à choisir sa filière selon son profil.",
           style: TextStyle(fontSize: 14, color: AppColors.textMuted, height: 1.6),
         ),
         const SizedBox(height: 20),
@@ -328,14 +363,14 @@ class _HeroSection extends StatelessWidget {
     final imageBlock = Container(
       height: isWide ? 320 : 200,
       decoration: BoxDecoration(
-        color: const Color(0xFFEAF3DE),
+        color: AppColors.sage,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFC0DD97)),
+        border: Border.all(color: AppColors.darkGreen.withOpacity(0.1)),
+        image: const DecorationImage(
+          image: AssetImage('assets/image/imgyde.png'),
+          fit: BoxFit.cover,
+        ),
       ),
-      alignment: Alignment.center,
-      child: const Icon(Icons.auto_awesome, size: 56, color: AppColors.darkGreen),
-      // NB: remplace ce placeholder par `DecorationImage(image: AssetImage('assets/image/imgyde.png'))`
-      // une fois l'image ajoutée dans assets/image/ et déclarée dans pubspec.yaml.
     );
     return Container(
       color: AppColors.white,
@@ -355,28 +390,29 @@ class _HeroSection extends StatelessWidget {
 }
 
 // ------------------------------------------------------------------------
-// SECTION 2 : GRID
+// SECTION 2 : GRID EXPLORE
 // ------------------------------------------------------------------------
 class _ExploreSection extends StatelessWidget {
   final bool isWide;
-  const _ExploreSection({required this.isWide});
+  final int totalJobs;
+  const _ExploreSection({required this.isWide, required this.totalJobs});
   @override
   Widget build(BuildContext context) {
     final cards = [
-      const _ExploreCard(
+      _ExploreCard(
         icon: Icons.location_city,
-        title: 'Emplois dans ta ville',
-        subtitle: 'Decouvre les opportunites professionnelles disponibles pres de chez toi, filtrees selon ta region.',
+        title: 'Emplois disponibles',
+        subtitle: '$totalJobs opportunités professionnelles sont actuellement listées sur la plateforme.',
       ),
       const _ExploreCard(
         icon: Icons.work_outline,
         title: 'Lieux & stages',
-        subtitle: "Trouve les entreprises partenaires qui accueillent des stagiaires dans ton domaine d'etude.",
+        subtitle: "Trouvez les entreprises partenaires qui accueillent des stagiaires dans votre domaine.",
       ),
       const _ExploreCard(
         icon: Icons.explore_outlined,
         title: 'Conseil & orientation',
-        subtitle: "L'intelligence artificielle analyse ton profil pour te proposer la filiere qui te correspond le mieux.",
+        subtitle: "L'IA analyse votre profil pour vous proposer la filière qui vous correspond le mieux.",
       ),
     ];
     return Container(
@@ -420,8 +456,8 @@ class _ExploreCard extends StatelessWidget {
           Container(
             height: 90,
             width: double.infinity,
-            decoration: BoxDecoration(color: AppColors.cardGrey, borderRadius: BorderRadius.circular(10)),
-            child: Icon(icon, color: AppColors.textMuted, size: 30),
+            decoration: BoxDecoration(color: AppColors.sage, borderRadius: BorderRadius.circular(10)),
+            child: Icon(icon, color: AppColors.darkGreen, size: 30),
           ),
           const SizedBox(height: 12),
           Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textDark)),
@@ -434,48 +470,35 @@ class _ExploreCard extends StatelessWidget {
 }
 
 // ------------------------------------------------------------------------
-// SECTION 3 : ANNONCES
+// SECTION 3 : ANNONCES (DYNAMIQUE)
 // ------------------------------------------------------------------------
 class _AnnouncementsSection extends StatelessWidget {
   final bool isWide;
-  const _AnnouncementsSection({required this.isWide});
+  final List<dynamic> offres;
+  final bool loading;
+  const _AnnouncementsSection({required this.isWide, required this.offres, required this.loading});
   @override
   Widget build(BuildContext context) {
-    final announcements = [
-      _Announcement(
-          tag: 'Stage',
-          tagColor: const Color(0xFF27500A),
-          tagBg: const Color(0xFFEAF3DE),
-          title: 'Developpeur mobile Flutter',
-          location: 'Douala, Cameroun'),
-      _Announcement(
-          tag: 'Formation',
-          tagColor: const Color(0xFF633806),
-          tagBg: const Color(0xFFFAEEDA),
-          title: 'Certification en intelligence artificielle',
-          location: 'En ligne'),
-      _Announcement(
-          tag: 'Emploi',
-          tagColor: const Color(0xFF04342C),
-          tagBg: const Color(0xFFE1F5EE),
-          title: 'Data analyst junior',
-          location: 'Yaounde, Cameroun'),
-    ];
     return Container(
       color: AppColors.white,
       padding: EdgeInsets.symmetric(horizontal: isWide ? 32 : 16, vertical: isWide ? 40 : 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Annonces recentes',
+          const Text('Annonces récentes',
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: AppColors.darkGreen)),
           const SizedBox(height: 4),
-          const Text("Stages, formations et offres d'emploi selectionnes pour toi",
+          const Text("Stages et offres d'emploi mis à jour en temps réel",
               style: TextStyle(fontSize: 13, color: AppColors.textMuted)),
           const SizedBox(height: 20),
-          isWide
-              ? Row(children: announcements.map((a) => Expanded(child: Padding(padding: const EdgeInsets.only(right: 16), child: a))).toList())
-              : Column(children: announcements.map((a) => Padding(padding: const EdgeInsets.only(bottom: 16), child: a)).toList()),
+          if (loading)
+            const Center(child: CircularProgressIndicator())
+          else if (offres.isEmpty)
+            const Center(child: Text("Aucune annonce récente."))
+          else
+            isWide
+                ? Row(children: offres.map((a) => Expanded(child: Padding(padding: const EdgeInsets.only(right: 16), child: _Announcement(offre: a)))).toList())
+                : Column(children: offres.map((a) => Padding(padding: const EdgeInsets.only(bottom: 16), child: _Announcement(offre: a))).toList()),
         ],
       ),
     );
@@ -483,21 +506,18 @@ class _AnnouncementsSection extends StatelessWidget {
 }
 
 class _Announcement extends StatelessWidget {
-  final String tag;
-  final Color tagColor;
-  final Color tagBg;
-  final String title;
-  final String location;
-  const _Announcement({required this.tag, required this.tagColor, required this.tagBg, required this.title, required this.location});
+  final dynamic offre;
+  const _Announcement({required this.offre});
   @override
   Widget build(BuildContext context) {
+    final bool isStage = offre['type'] == 'stage';
     return Container(
       decoration: BoxDecoration(borderRadius: BorderRadius.circular(12), border: Border.all(color: AppColors.cardGrey.withOpacity(0.6))),
       clipBehavior: Clip.antiAlias,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(height: 100, color: AppColors.cardGrey),
+          Container(height: 100, color: AppColors.sage, child: const Icon(Icons.work, color: AppColors.darkGreen, size: 30)),
           Padding(
             padding: const EdgeInsets.all(12),
             child: Column(
@@ -505,17 +525,23 @@ class _Announcement extends StatelessWidget {
               children: [
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(color: tagBg, borderRadius: BorderRadius.circular(10)),
-                  child: Text(tag, style: TextStyle(fontSize: 10, color: tagColor, fontWeight: FontWeight.w600)),
+                  decoration: BoxDecoration(
+                    color: isStage ? const Color(0xFFEAF3DE) : const Color(0xFFE1F5EE),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    isStage ? 'Stage' : 'Emploi',
+                    style: TextStyle(fontSize: 10, color: isStage ? AppColors.darkGreen : const Color(0xFF04342C), fontWeight: FontWeight.w600),
+                  ),
                 ),
                 const SizedBox(height: 8),
-                Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.textDark)),
+                Text(offre['titre'] ?? '', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.textDark)),
                 const SizedBox(height: 4),
                 Row(
                   children: [
                     const Icon(Icons.location_on_outlined, size: 13, color: AppColors.textMuted),
                     const SizedBox(width: 4),
-                    Text(location, style: const TextStyle(fontSize: 12, color: AppColors.textMuted)),
+                    Text(offre['localisation'] ?? 'Cameroun', style: const TextStyle(fontSize: 12, color: AppColors.textMuted)),
                   ],
                 ),
               ],
@@ -536,7 +562,7 @@ class _JoinSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final joinCards = [
-      _JoinCard(icon: Icons.school_outlined, text: "Inscris-toi si tu es etudiant(e)", onTap: () => context.go('/auth?role=etudiant')),
+      _JoinCard(icon: Icons.school_outlined, text: "Inscris-toi si tu es étudiant(e)", onTap: () => context.go('/auth?role=etudiant')),
       _JoinCard(icon: Icons.apartment_outlined, text: 'Inscris-toi si tu es une entreprise', onTap: () => context.go('/auth?role=entreprise'))
     ];
     return Container(
@@ -545,9 +571,9 @@ class _JoinSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Rejoins la communaute IAI Horizon', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: AppColors.white)),
+          const Text('Rejoins la communauté IAI Horizon', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: AppColors.white)),
           const SizedBox(height: 4),
-          const Text('Quel que soit ton profil, la plateforme a ete pensee pour toi', style: TextStyle(fontSize: 13, color: Color(0xFFD7E9DE))),
+          const Text('Quel que soit ton profil, la plateforme a été pensée pour toi', style: TextStyle(fontSize: 13, color: Color(0xFFD7E9DE))),
           const SizedBox(height: 20),
           isWide
               ? Row(children: joinCards.map((c) => Expanded(child: Padding(padding: const EdgeInsets.only(right: 16), child: c))).toList())
@@ -597,72 +623,23 @@ class _Footer extends StatelessWidget {
   const _Footer({required this.isWide});
   @override
   Widget build(BuildContext context) {
-    final description = Expanded(
-      flex: isWide ? 4 : 0,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('IAI Horizon', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.gold)),
-          const SizedBox(height: 10),
-          const Text(
-            "Une plateforme intelligente d'orientation academique et d'insertion "
-                "professionnelle pour les etudiants de l'Institut Africain d'Informatique (IAI-Cameroun). "
-                "Elle propose des recommandations personnalisees, des offres de stage et d'emploi, ainsi "
-                "qu'un accompagnement continu grace a l'intelligence artificielle.",
-            style: TextStyle(fontSize: 12, color: Color(0xFFB4B2A9), height: 1.6),
-          ),
-        ],
-      ),
-    );
-    final about = Expanded(
-      flex: isWide ? 3 : 0,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: const [
-          Text('A propos', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.white)),
-          SizedBox(height: 10),
-          Text('Notre mission', style: TextStyle(fontSize: 12, color: Color(0xFFB4B2A9), height: 2)),
-          Text("L'equipe du projet", style: TextStyle(fontSize: 12, color: Color(0xFFB4B2A9), height: 2)),
-          Text("Partenaires de l'IAI", style: TextStyle(fontSize: 12, color: Color(0xFFB4B2A9), height: 2)),
-        ],
-      ),
-    );
-    final contact = Expanded(
-      flex: isWide ? 3 : 0,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: const [
-          Text('Contact', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.white)),
-          SizedBox(height: 10),
-          Text('contact@iaihorizon.cm', style: TextStyle(fontSize: 12, color: Color(0xFFB4B2A9), height: 2)),
-          Text('Douala, Cameroun', style: TextStyle(fontSize: 12, color: Color(0xFFB4B2A9), height: 2)),
-          Text('+237 671 681 076', style: TextStyle(fontSize: 12, color: Color(0xFFB4B2A9), height: 2)),
-        ],
-      ),
-    );
     return Container(
       color: const Color(0xFF2C2C2A),
       padding: EdgeInsets.symmetric(horizontal: isWide ? 32 : 16, vertical: 28),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          isWide
-              ? Row(crossAxisAlignment: CrossAxisAlignment.start, children: [description, const SizedBox(width: 32), about, const SizedBox(width: 32), contact])
-              : Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [description.child]),
-              const SizedBox(height: 20),
-              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [about.child]),
-              const SizedBox(height: 20),
-              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [contact.child]),
-            ],
+          const Text('IAI Horizon', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.gold)),
+          const SizedBox(height: 10),
+          const Text(
+            "Plateforme intelligente d'orientation et d'insertion professionnelle pour l'IAI-Cameroun.",
+            style: TextStyle(fontSize: 12, color: Color(0xFFB4B2A9), height: 1.6),
           ),
           const SizedBox(height: 24),
           const Divider(color: Color(0xFF444441)),
           const SizedBox(height: 12),
           const Text(
-            "© 2026 IAI Horizon — Institut Africain d'Informatique, Cameroun. Tous droits reserves.",
+            "© 2026 IAI Horizon — Institut Africain d'Informatique, Cameroun. Tous droits réservés.",
             style: TextStyle(fontSize: 11, color: Color(0xFF888780)),
           ),
         ],

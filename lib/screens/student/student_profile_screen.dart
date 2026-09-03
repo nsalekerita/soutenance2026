@@ -125,23 +125,25 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
   // (URL signée -> upload direct -> confirmation côté API).
   // ---------------------------------------------------------------------
 
-  /// Ajoute une nouvelle note (note == null) ou remplace l'image d'une note
+  /// Ajoute une nouvelle note (note == null) ou remplace le fichier d'une note
   /// existante (note != null). Demande d'abord un semestre optionnel, puis
-  /// laisse l'utilisateur choisir une image depuis la galerie.
-  Future<void> _pickAndUploadNoteImage({Map<String, dynamic>? note}) async {
-    final picker = ImagePicker();
-    final XFile? image = await picker.pickImage(
-      source: ImageSource.gallery,
-      maxWidth: 1600,
-      imageQuality: 85,
+  /// laisse l'utilisateur choisir un fichier (PDF ou Image).
+  Future<void> _pickAndUploadNote({Map<String, dynamic>? note}) async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
+      withData: true,
     );
-    if (image == null) return;
+    if (result == null || result.files.isEmpty) return;
+
+    final file = result.files.single;
+    if (file.bytes == null) return;
 
     final semestreCtrl = TextEditingController(text: note?['semestre']?.toString() ?? '');
     final confirme = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(note == null ? 'Ajouter une note (image)' : "Remplacer l'image de la note"),
+        title: Text(note == null ? 'Ajouter une note (PDF ou Image)' : "Remplacer le fichier de la note"),
         content: TextField(
           controller: semestreCtrl,
           decoration: const InputDecoration(labelText: 'Semestre (optionnel)'),
@@ -162,39 +164,45 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
 
     setState(() => _uploadingNoteId = note?['id']?.toString() ?? '_new');
     try {
-      // 1. Demande d'une URL signée pour l'upload de l'image de note.
+      // 1. Demande d'une URL signée pour l'upload du fichier de note.
       final uploadInfo = await _api.post('/profils/moi/notes/upload-url', {
-        'nom_fichier': image.name,
+        'nom_fichier': file.name,
       });
       final uploadUrl = uploadInfo['upload_url'] as String;
 
       // 2. Envoi du fichier directement vers l'URL signée.
-      // On utilise XFile.readAsBytes() (et non dart:io File) pour rester
-      // compatible avec Flutter Web, où dart:io n'est pas disponible.
-      final bytes = await image.readAsBytes();
+      String contentType = 'application/octet-stream';
+      final fileNameLower = file.name.toLowerCase();
+      if (fileNameLower.endsWith('.pdf')) {
+        contentType = 'application/pdf';
+      } else if (fileNameLower.endsWith('.png')) {
+        contentType = 'image/png';
+      } else if (fileNameLower.endsWith('.jpg') || fileNameLower.endsWith('.jpeg')) {
+        contentType = 'image/jpeg';
+      }
+
       final putResponse = await http.put(
         Uri.parse(uploadUrl),
-        headers: {'Content-Type': 'image/jpeg'},
-        body: bytes,
+        headers: {'Content-Type': contentType},
+        body: file.bytes,
       );
       if (putResponse.statusCode < 200 || putResponse.statusCode >= 300) {
-        throw Exception("Échec de l'upload de l'image (${putResponse.statusCode})");
+        throw Exception("Échec de l'upload du fichier (${putResponse.statusCode})");
       }
 
       final semestre = semestreCtrl.text.trim().isEmpty ? null : semestreCtrl.text.trim();
 
-      // 3. Confirmation côté API : création si nouvelle note, mise à jour
-      // (remplacement de l'image + éventuellement du semestre) sinon.
+      // 3. Confirmation côté API.
       if (note == null) {
         await _api.post('/profils/moi/notes/confirmer', {
           'cle_fichier': uploadInfo['cle_fichier'],
-          'nom_fichier': image.name,
+          'nom_fichier': file.name,
           'semestre': semestre,
         });
       } else {
         await _api.put('/profils/moi/notes/${note['id']}', {
           'cle_fichier': uploadInfo['cle_fichier'],
-          'nom_fichier': image.name,
+          'nom_fichier': file.name,
           'semestre': semestre,
         });
       }
@@ -731,8 +739,8 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
                     : const Icon(Icons.add_circle, color: AppColors.darkGreen),
-                tooltip: 'Ajouter une note (image)',
-                onPressed: _uploadingNoteId != null ? null : () => _pickAndUploadNoteImage(),
+                tooltip: 'Ajouter une note (PDF ou image)',
+                onPressed: _uploadingNoteId != null ? null : () => _pickAndUploadNote(),
               ),
             ],
           ),
@@ -750,16 +758,23 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
                     child: ListTile(
                       leading: ClipRRect(
                         borderRadius: BorderRadius.circular(6),
-                        child: Image.network(
-                          n['url'] ?? '',
-                          width: 48,
-                          height: 48,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) => const Icon(
-                            Icons.image_not_supported,
-                            color: AppColors.textMuted,
-                          ),
-                        ),
+                        child: (n['nom_fichier']?.toString().toLowerCase().endsWith('.pdf') ?? false)
+                            ? Container(
+                                width: 48,
+                                height: 48,
+                                color: Colors.red.shade50,
+                                child: const Icon(Icons.picture_as_pdf, color: Colors.red, size: 24),
+                              )
+                            : Image.network(
+                                n['url'] ?? '',
+                                width: 48,
+                                height: 48,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) => const Icon(
+                                  Icons.image_not_supported,
+                                  color: AppColors.textMuted,
+                                ),
+                              ),
                       ),
                       title: Text(
                         n['semestre'] != null && (n['semestre'] as String).isNotEmpty
@@ -783,10 +798,10 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
                           ),
                           IconButton(
                             icon: const Icon(Icons.refresh, size: 20),
-                            tooltip: "Remplacer l'image",
+                            tooltip: "Remplacer le fichier",
                             onPressed: _uploadingNoteId != null
                                 ? null
-                                : () => _pickAndUploadNoteImage(note: n),
+                                : () => _pickAndUploadNote(note: n),
                           ),
                           IconButton(
                             icon: const Icon(Icons.delete, size: 20, color: Colors.redAccent),
@@ -799,31 +814,26 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
                   ),
               ],
             ),
-          const SizedBox(height: 28),
-          _sectionTitle('Recommandations personnalisées'),
-          if (_loadingRecommandations)
-            const Center(child: CircularProgressIndicator())
-          else if (_recommandations.isEmpty)
-            const Text(
-              'Complétez votre profil (compétences, centres d\'intérêt) pour '
-                  'recevoir des recommandations de spécialités, technologies, '
-                  'certifications, formations et métiers.',
-              style: TextStyle(color: AppColors.textMuted, fontSize: 13),
-            )
-          else
-            Column(
-              children: [
-                for (final r in _recommandations)
-                  Card(
-                    margin: const EdgeInsets.only(bottom: 8),
-                    child: ListTile(
-                      leading: Icon(_iconForType(r['type']), color: AppColors.darkGreen),
-                      title: Text(r['titre'] ?? ''),
-                      subtitle: Text(r['type'] ?? ''),
+          if (_loadingRecommandations || _recommandations.isNotEmpty) ...[
+            const SizedBox(height: 28),
+            _sectionTitle('Recommandations personnalisées'),
+            if (_loadingRecommandations)
+              const Center(child: CircularProgressIndicator())
+            else
+              Column(
+                children: [
+                  for (final r in _recommandations)
+                    Card(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      child: ListTile(
+                        leading: Icon(_iconForType(r['type']), color: AppColors.darkGreen),
+                        title: Text(r['titre'] ?? ''),
+                        subtitle: Text(r['type'] ?? ''),
+                      ),
                     ),
-                  ),
-              ],
-            ),
+                ],
+              ),
+          ],
         ],
       ),
     );

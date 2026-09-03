@@ -84,14 +84,30 @@ class _Sidebar extends StatelessWidget {
     return Container(
       width: 240,
       color: AppColors.white,
-      child: ListView.builder(
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        itemCount: items.length,
-        itemBuilder: (context, index) => _SidebarItem(
-          entry: items[index],
-          selected: index == selectedIndex,
-          onTap: () => onSelect(index),
-        ),
+      child: Column(
+        children: [
+          Expanded(
+            child: ListView.builder(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              itemCount: items.length,
+              itemBuilder: (context, index) => _SidebarItem(
+                entry: items[index],
+                selected: index == selectedIndex,
+                onTap: () => onSelect(index),
+              ),
+            ),
+          ),
+          const Divider(height: 1),
+          _SidebarItem(
+            entry: const NavEntry(Icons.logout, 'Se déconnecter'),
+            selected: false,
+            onTap: () async {
+              await context.read<AuthProvider>().logout();
+              if (context.mounted) context.go('/');
+            },
+          ),
+          const SizedBox(height: 16),
+        ],
       ),
     );
   }
@@ -122,17 +138,25 @@ class _SidebarItemState extends State<_SidebarItem> {
           duration: const Duration(milliseconds: 150),
           margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
           decoration: BoxDecoration(
-            color: active ? AppColors.background : Colors.transparent,
+            color: widget.selected ? AppColors.gold.withOpacity(0.15) : (_hover ? AppColors.background : Colors.transparent),
             borderRadius: BorderRadius.circular(10),
+            border: widget.selected 
+              ? const Border(left: BorderSide(color: AppColors.gold, width: 4))
+              : null,
           ),
           child: ListTile(
             onTap: widget.onTap,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            leading: Icon(widget.entry.icon, color: widget.selected ? AppColors.darkGreen : AppColors.textMuted, size: 20),
+            leading: Icon(
+              widget.entry.icon, 
+              color: widget.selected ? AppColors.gold : AppColors.textMuted, 
+              size: 20
+            ),
             title: Text(
               widget.entry.label,
               style: TextStyle(
-                color: widget.selected ? AppColors.darkGreen : AppColors.textDark,
+                color: widget.selected ? AppColors.gold : AppColors.textDark,
                 fontWeight: widget.selected ? FontWeight.w700 : FontWeight.w500,
                 fontSize: 13,
               ),

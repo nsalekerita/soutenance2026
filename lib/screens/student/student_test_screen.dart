@@ -17,6 +17,13 @@ const _questions = [
   {'id': 'q1', 'label': "Préfères-tu résoudre des problèmes logiques ou créer des interfaces visuelles ?", 'options': ['Logique', 'Visuel', 'Les deux']},
   {'id': 'q2', 'label': 'Es-tu plus attiré par la donnée (data) ou par le développement d\'applications ?', 'options': ['Donnée', 'Applications']},
   {'id': 'q3', 'label': "Aimerais-tu travailler sur des projets d'intelligence artificielle ?", 'options': ['Oui', 'Non', 'Peut-être']},
+  {'id': 'q4', 'label': "Aimes-tu travailler sur le matériel (hardware) ou uniquement sur le logiciel (software) ?", 'options': ['Hardware', 'Software', 'Les deux']},
+  {'id': 'q5', 'label': "Es-tu à l'aise avec la gestion d'équipe et la planification de projets ?", 'options': ['Gestion/Management', 'Technique pure', 'Mixte']},
+  {'id': 'q6', 'label': "Quel domaine t'intéresse le plus ?", 'options': ['Cybersécurité', 'Cloud Computing', 'IoT (Objets connectés)', 'Développement Web']},
+  {'id': 'q7', 'label': "Préfères-tu un environnement de travail structuré ou flexible ?", 'options': ['Grande Entreprise', 'Startup', 'Freelance']},
+  {'id': 'q8', 'label': "Es-tu intéressé par le développement mobile ?", 'options': ['Oui, passionnément', 'Un peu', 'Pas du tout']},
+  {'id': 'q9', 'label': "Comment abordes-tu un problème complexe ?", 'options': ['Analyse mathématique', 'Prototype rapide', 'Recherche documentaire']},
+  {'id': 'q10', 'label': "L'expérience utilisateur (UX) est-elle pour toi une priorité ?", 'options': ['Essentielle', 'Secondaire', 'Pas mon domaine']},
 ];
 
 class _StudentTestScreenState extends State<StudentTestScreen> {
@@ -61,8 +68,27 @@ class _StudentTestScreenState extends State<StudentTestScreen> {
           const SizedBox(height: 20),
           for (final s in scores)
             Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: LinearProgressIndicator(value: (s['score'] ?? 0) / 100, minHeight: 8, color: AppColors.gold, backgroundColor: AppColors.cardGrey),
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(s['filiere_nom'] ?? 'Filière', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                      Text('${s['score']}%', style: const TextStyle(color: AppColors.gold, fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  LinearProgressIndicator(
+                    value: (s['score'] ?? 0) / 100,
+                    minHeight: 8,
+                    color: AppColors.gold,
+                    backgroundColor: AppColors.cardGrey,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ],
+              ),
             ),
         ],
       );

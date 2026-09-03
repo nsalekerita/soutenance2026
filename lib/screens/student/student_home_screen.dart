@@ -100,7 +100,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
         children: [
           // --- En-tête de bienvenue ---
           Text(
-            'Bonjour${prenom.toString().isNotEmpty ? ', $prenom' : ''} 👋',
+            'Bonjour${prenom.toString().isNotEmpty ? ', $prenom' : ''} ',
             style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.textDark),
           ),
           const SizedBox(height: 4),

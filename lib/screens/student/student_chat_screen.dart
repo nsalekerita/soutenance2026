@@ -20,8 +20,38 @@ class _StudentChatScreenState extends State<StudentChatScreen> {
   final _api = ApiClient.instance;
   final _input = TextEditingController();
   final _messages = <_Message>[];
+  final _scrollController = ScrollController();
   String? _conversationId;
   bool _sending = false;
+  bool _initializing = true;
+
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+  }
+
+  Future<void> _startConversation() async {
+    setState(() => _initializing = true);
+    try {
+      final data = await _api.post('/ia/chat', {
+        'message': "Bonjour, je souhaite des conseils d'orientation basés sur mon profil."
+      });
+      _conversationId = data['conversationId'];
+      setState(() => _messages.add(_Message('assistant', data['reponse'])));
+      _scrollToBottom();
+    } catch (e) {
+      debugPrint("Erreur init chat: $e");
+    } finally {
+      setState(() => _initializing = false);
+    }
+  }
 
   Future<void> _send() async {
     final text = _input.text.trim();
@@ -31,12 +61,15 @@ class _StudentChatScreenState extends State<StudentChatScreen> {
       _input.clear();
       _sending = true;
     });
+    _scrollToBottom();
     try {
       final data = await _api.post('/ia/chat', {'conversationId': _conversationId, 'message': text});
       _conversationId = data['conversationId'];
       setState(() => _messages.add(_Message('assistant', data['reponse'])));
+      _scrollToBottom();
     } catch (e) {
       setState(() => _messages.add(_Message('assistant', 'Désolé, une erreur est survenue: $e')));
+      _scrollToBottom();
     } finally {
       setState(() => _sending = false);
     }
@@ -47,9 +80,12 @@ class _StudentChatScreenState extends State<StudentChatScreen> {
     return Column(
       children: [
         Expanded(
-          child: _messages.isEmpty
-              ? const Center(child: Text('Pose ta question sur ton orientation, une filière, un stage...', style: TextStyle(color: AppColors.textMuted)))
-              : ListView.builder(
+          child: _initializing
+              ? const Center(child: CircularProgressIndicator(color: AppColors.gold))
+              : _messages.isEmpty
+                  ? const Center(child: Text('Pose ta question sur ton orientation...', style: TextStyle(color: AppColors.textMuted)))
+                  : ListView.builder(
+            controller: _scrollController,
             padding: const EdgeInsets.all(16),
             itemCount: _messages.length,
             itemBuilder: (context, i) {
@@ -58,14 +94,24 @@ class _StudentChatScreenState extends State<StudentChatScreen> {
               return Align(
                 alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
                 child: Container(
-                  margin: const EdgeInsets.symmetric(vertical: 4),
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  constraints: const BoxConstraints(maxWidth: 460),
+                  margin: const EdgeInsets.symmetric(vertical: 6),
+                  padding: const EdgeInsets.all(14),
+                  constraints: const BoxConstraints(maxWidth: 600),
                   decoration: BoxDecoration(
                     color: isUser ? AppColors.darkGreen : AppColors.white,
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      if (!isUser) BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4, offset: const Offset(0, 2))
+                    ],
                   ),
-                  child: Text(m.contenu, style: TextStyle(color: isUser ? AppColors.white : AppColors.textDark)),
+                  child: SelectableText(
+                    m.contenu,
+                    style: TextStyle(
+                      color: isUser ? AppColors.white : AppColors.textDark,
+                      height: 1.5,
+                      fontSize: 14,
+                    ),
+                  ),
                 ),
               );
             },
