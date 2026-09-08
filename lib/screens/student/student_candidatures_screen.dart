@@ -27,7 +27,7 @@ class _StudentCandidaturesScreenState extends State<StudentCandidaturesScreen> {
       final data = await _api.get('/candidatures/moi');
       setState(() => _candidatures = data as List<dynamic>);
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(friendlyApiError(e))));
     } finally {
       setState(() => _loading = false);
     }

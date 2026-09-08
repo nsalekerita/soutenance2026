@@ -12,6 +12,8 @@ class LoginScreen extends StatefulWidget {
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
+final _emailRegex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
+
 class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _email = TextEditingController();
@@ -35,8 +37,13 @@ class _LoginScreenState extends State<LoginScreen> {
       );
       
       if (!mounted) return;
-      
-      switch (auth.user!.role) {
+
+      final role = auth.user?.role;
+      if (role == null) {
+        setState(() => _error = 'Connexion impossible. Réessayez.');
+        return;
+      }
+      switch (role) {
         case UserRole.etudiant:
           context.go('/etudiant');
           break;
@@ -179,7 +186,11 @@ class _LoginScreenState extends State<LoginScreen> {
                 TextFormField(
                   controller: _email,
                   decoration: _inputDecoration(hint: 'votre@email.com', icon: Icons.email_outlined),
-                  validator: (v) => v!.isEmpty ? 'Veuillez entrer votre email' : null,
+                  validator: (v) {
+                    if (v == null || v.isEmpty) return 'Veuillez entrer votre email';
+                    if (!_emailRegex.hasMatch(v.trim())) return 'Adresse email invalide';
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 28),
                 
@@ -196,7 +207,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       onPressed: () => setState(() => _obscure = !_obscure),
                     ),
                   ),
-                  validator: (v) => v!.isEmpty ? 'Veuillez entrer votre mot de passe' : null,
+                  validator: (v) => (v == null || v.isEmpty) ? 'Veuillez entrer votre mot de passe' : null,
                 ),
                 
                 const SizedBox(height: 20),

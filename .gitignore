@@ -43,3 +43,13 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Secrets / environment files & signing keys — ne jamais committer
+.env
+.env.*
+!.env.example
+**/android/key.properties
+**/android/**/*.jks
+**/android/**/*.keystore
+**/android/app/google-services.json
+**/ios/Runner/GoogleService-Info.plist

@@ -13,6 +13,8 @@ class RegisterScreen extends StatefulWidget {
   State<RegisterScreen> createState() => _RegisterScreenState();
 }
 
+final _emailRegex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
+
 class _RegisterScreenState extends State<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nom = TextEditingController();
@@ -188,7 +190,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             TextFormField(
                               controller: _email,
                               decoration: _inputDecoration(hint: 'exemple@gmail.com'),
-                              validator: (v) => v!.isEmpty ? 'Requis' : null,
+                              validator: (v) {
+                                if (v == null || v.isEmpty) return 'Requis';
+                                if (!_emailRegex.hasMatch(v.trim())) return 'Adresse email invalide';
+                                return null;
+                              },
                             ),
                             const SizedBox(height: 20),
 
@@ -198,7 +204,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               controller: _telephone,
                               keyboardType: TextInputType.phone,
                               decoration: _inputDecoration(hint: '671 681 076'),
-                              validator: (v) => v!.isEmpty ? 'Requis' : null,
+                              validator: (v) {
+                                if (v == null || v.isEmpty) return 'Requis';
+                                final digits = v.replaceAll(RegExp(r'[^0-9]'), '');
+                                if (digits.length < 8) return 'Numéro de téléphone invalide';
+                                return null;
+                              },
                             ),
                             const SizedBox(height: 20),
 
@@ -228,7 +239,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   ),
                                 ),
                               ),
-                              validator: (v) => v!.length < 6 ? '6 caractères min.' : null,
+                              validator: (v) => (v == null || v.length < 6) ? '6 caractères min.' : null,
                             ),
 
                             const SizedBox(height: 24),

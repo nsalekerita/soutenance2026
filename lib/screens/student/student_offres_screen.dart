@@ -28,7 +28,7 @@ class _StudentOffresScreenState extends State<StudentOffresScreen> {
       final data = await _api.get('/offres', auth: false);
       setState(() => _offres = data as List<dynamic>);
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(friendlyApiError(e))));
     } finally {
       setState(() => _loading = false);
     }
@@ -39,7 +39,7 @@ class _StudentOffresScreenState extends State<StudentOffresScreen> {
       await _api.post('/candidatures', {'offreId': offreId});
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Candidature envoyée !')));
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur: $e')));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(friendlyApiError(e))));
     }
   }
 
@@ -186,7 +186,7 @@ class _StudentOffresScreenState extends State<StudentOffresScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
+          SnackBar(content: Text(friendlyApiError(e)), backgroundColor: Colors.red),
         );
       }
     }

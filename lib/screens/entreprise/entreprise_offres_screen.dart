@@ -31,7 +31,7 @@ class _EntrepriseOffresScreenState extends State<EntrepriseOffresScreen> {
       setState(() => _offres = data is List<dynamic> ? data : <dynamic>[]);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(friendlyApiError(e))));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -61,7 +61,7 @@ class _EntrepriseOffresScreenState extends State<EntrepriseOffresScreen> {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Offre supprimée")));
       _load();
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(friendlyApiError(e))));
     }
   }
 

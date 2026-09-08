@@ -48,7 +48,7 @@ class _StudentTestScreenState extends State<StudentTestScreen> {
         setState(() => _resultat = data);
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur: $e')));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(friendlyApiError(e))));
     } finally {
       setState(() => _loading = false);
     }

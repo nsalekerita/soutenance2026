@@ -1,6 +1,4 @@
-import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:provider/provider.dart';
 
 import '../services/auth_provider.dart';
 import '../../screens/splash/splash_screen.dart';
@@ -30,13 +28,15 @@ GoRouter buildAppRouter(AuthProvider authProvider) {
 
       // Si connecté mais sur une page publique/auth -> redirige vers son dashboard.
       if (isAuthenticated && (loggingIn || atPublicHome) && state.matchedLocation != '/splash') {
-        switch (authProvider.user!.role) {
+        switch (authProvider.user?.role) {
           case UserRole.etudiant:
             return '/etudiant';
           case UserRole.entreprise:
             return '/entreprise';
           case UserRole.administrateur:
             return '/administrateur';
+          case null:
+            return null;
         }
       }
 

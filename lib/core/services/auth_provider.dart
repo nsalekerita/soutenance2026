@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart';
 import 'api_client.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 
 enum UserRole { etudiant, entreprise, administrateur }
 
@@ -125,23 +124,6 @@ class AuthProvider extends ChangeNotifier {
       {
         'email': email,
         'password': password,
-      },
-      auth: false,
-    );
-
-    await _afterAuthSuccess(data);
-  }
-
-  // ✅ Google Login doit être À L'INTÉRIEUR de AuthProvider
-  Future<void> loginWithGoogle({
-    required String idToken,
-    required String role,
-  }) async {
-    final data = await _api.post(
-      '/auth/google',
-      {
-        'idToken': idToken,
-        'role': role,
       },
       auth: false,
     );

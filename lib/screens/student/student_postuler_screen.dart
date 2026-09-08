@@ -85,7 +85,7 @@ class _StudentPostulerScreenState extends State<StudentPostulerScreen> {
         Uri.parse(uploadUrl),
         body: file.bytes,
         headers: {'Content-Type': 'application/octet-stream'},
-      );
+      ).timeout(const Duration(seconds: 30));
 
       if (res.statusCode >= 200 && res.statusCode < 300) {
         final publicRes = await _api.get('/candidatures/public-url?bucket=$bucket&path=$cleFichier');
@@ -164,7 +164,7 @@ class _StudentPostulerScreenState extends State<StudentPostulerScreen> {
         );
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur: $e')));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(friendlyApiError(e))));
     } finally {
       if (mounted) setState(() => _submitting = false);
     }

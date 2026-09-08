@@ -23,6 +23,8 @@ class ApiClient {
   Future<void> saveToken(String token) => _storage.write(key: _tokenKey, value: token);
   Future<void> clearToken() => _storage.delete(key: _tokenKey);
 
+  static const Duration _timeout = Duration(seconds: 15);
+
   Future<Map<String, String>> _headers({bool auth = true}) async {
     final headers = {'Content-Type': 'application/json'};
     if (auth) {
@@ -32,40 +34,57 @@ class ApiClient {
     return headers;
   }
 
+  Future<http.Response> _withTimeout(Future<http.Response> request) {
+    return request.timeout(
+      _timeout,
+      onTimeout: () => throw ApiException('Le serveur met trop de temps à répondre. Réessayez.', 0),
+    );
+  }
+
   Future<dynamic> get(String path, {bool auth = true}) async {
-    final res = await http.get(Uri.parse('$baseUrl$path'), headers: await _headers(auth: auth));
+    final res = await _withTimeout(
+      http.get(Uri.parse('$baseUrl$path'), headers: await _headers(auth: auth)),
+    );
     return _handle(res);
   }
 
   Future<dynamic> post(String path, Map<String, dynamic> body, {bool auth = true}) async {
-    final res = await http.post(
-      Uri.parse('$baseUrl$path'),
-      headers: await _headers(auth: auth),
-      body: jsonEncode(body),
+    final res = await _withTimeout(
+      http.post(
+        Uri.parse('$baseUrl$path'),
+        headers: await _headers(auth: auth),
+        body: jsonEncode(body),
+      ),
     );
     return _handle(res);
   }
 
   Future<dynamic> patch(String path, Map<String, dynamic> body, {bool auth = true}) async {
-    final res = await http.patch(
-      Uri.parse('$baseUrl$path'),
-      headers: await _headers(auth: auth),
-      body: jsonEncode(body),
+    final res = await _withTimeout(
+      http.patch(
+        Uri.parse('$baseUrl$path'),
+        headers: await _headers(auth: auth),
+        body: jsonEncode(body),
+      ),
     );
     return _handle(res);
   }
 
   Future<dynamic> put(String path, Map<String, dynamic> body, {bool auth = true}) async {
-    final res = await http.put(
-      Uri.parse('$baseUrl$path'),
-      headers: await _headers(auth: auth),
-      body: jsonEncode(body),
+    final res = await _withTimeout(
+      http.put(
+        Uri.parse('$baseUrl$path'),
+        headers: await _headers(auth: auth),
+        body: jsonEncode(body),
+      ),
     );
     return _handle(res);
   }
 
   Future<dynamic> delete(String path, {bool auth = true}) async {
-    final res = await http.delete(Uri.parse('$baseUrl$path'), headers: await _headers(auth: auth));
+    final res = await _withTimeout(
+      http.delete(Uri.parse('$baseUrl$path'), headers: await _headers(auth: auth)),
+    );
     return _handle(res);
   }
 
@@ -85,4 +104,12 @@ class ApiException implements Exception {
   ApiException(this.message, this.statusCode);
   @override
   String toString() => message;
+}
+
+/// Message à afficher à l'utilisateur : le message métier du backend s'il est
+/// disponible, sinon un message générique (on n'expose jamais e.toString()
+/// brut, qui peut contenir des détails techniques internes).
+String friendlyApiError(Object e) {
+  if (e is ApiException) return e.message;
+  return 'Une erreur est survenue. Vérifiez votre connexion et réessayez.';
 }

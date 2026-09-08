@@ -1,4 +1,4 @@
-package com.example.nsalekerita
+package com.kerita.nsalekerita
 
 import io.flutter.embedding.android.FlutterActivity
 

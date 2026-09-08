@@ -59,7 +59,7 @@ class _AdministrateurDashboardScreenState extends State<AdministrateurDashboardS
     } catch (e) {
       debugPrint('Administrateur Load Error: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(friendlyApiError(e))));
       }
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -88,7 +88,7 @@ class _AdministrateurDashboardScreenState extends State<AdministrateurDashboardS
       _load();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur validation: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(friendlyApiError(e))));
       }
     }
   }
@@ -141,7 +141,7 @@ class _AdministrateurDashboardScreenState extends State<AdministrateurDashboardS
       // pour ne pas afficher un statut qui n'a pas réellement été appliqué.
       if (mounted) {
         setState(() => compte['actif'] = estActif);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(friendlyApiError(e))));
       }
     }
   }

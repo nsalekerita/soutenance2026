@@ -35,41 +35,19 @@ class _EntrepriseCandidaturesScreenState extends State<EntrepriseCandidaturesScr
   Future<void> _load() async {
     if (!mounted) return;
     setState(() => _loading = true);
-    
-    // Liste des routes à tester par ordre de probabilité
-    final routesToTest = [
-      '/candidatures/offre/${widget.offreId}',    // Route officielle lue dans candidatures.routes.js
-      '/candidatures/offres/${widget.offreId}',   // Variante plurielle courante
-      '/offres/${widget.offreId}/candidatures',   // Variante imbriquée
-      '/candidatures/${widget.offreId}',          // Route directe
-    ];
 
-    dynamic lastError;
-
-    for (var route in routesToTest) {
-      try {
-        print('Tentative d\'accès à la route : $route');
-        final data = await ApiClient.instance.get(route);
-        
-        if (!mounted) return;
-        setState(() {
-          _candidatures = data is List<dynamic> ? data : <dynamic>[];
-          _loading = false;
-        });
-        print('Succès sur la route : $route');
-        return; // Succès, on sort de la fonction
-      } catch (e) {
-        lastError = e;
-        print('Échec sur la route $route : $e');
-        // Si ce n'est pas une 404, on arrête de chercher (ex: 401, 403, 500)
-        if (e is ApiException && (e as dynamic).statusCode != 404) break;
-      }
-    }
-
-    if (mounted) {
+    try {
+      final data = await ApiClient.instance.get('/candidatures/offre/${widget.offreId}');
+      if (!mounted) return;
+      setState(() {
+        _candidatures = data is List<dynamic> ? data : <dynamic>[];
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
       setState(() => _loading = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erreur: ${lastError ?? "Route introuvable"}')),
+        SnackBar(content: Text(friendlyApiError(e))),
       );
     }
   }
@@ -83,7 +61,7 @@ class _EntrepriseCandidaturesScreenState extends State<EntrepriseCandidaturesScr
       }
       await _load();
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur: $e')));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(friendlyApiError(e))));
     } finally {
       if (mounted) setState(() => _actionEnCours.remove(candidatureId));
     }
@@ -114,7 +92,7 @@ class _EntrepriseCandidaturesScreenState extends State<EntrepriseCandidaturesScr
       }
       await _load();
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur: $e')));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(friendlyApiError(e))));
     } finally {
       if (mounted) setState(() => _actionEnCours.remove(candidatureId));
     }
