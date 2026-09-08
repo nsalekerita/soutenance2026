@@ -76,7 +76,7 @@ class _EntrepriseHomeScreenState extends State<EntrepriseHomeScreen> {
         padding: const EdgeInsets.all(24),
         children: [
           const Text(
-            'Tableau de bord Entreprise 🏢',
+            'Tableau de bord Entreprise ',
             style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.textDark),
           ),
           const SizedBox(height: 4),

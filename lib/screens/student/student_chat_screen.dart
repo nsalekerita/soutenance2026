@@ -25,6 +25,12 @@ class _StudentChatScreenState extends State<StudentChatScreen> {
   bool _sending = false;
   bool _initializing = true;
 
+  @override
+  void initState() {
+    super.initState();
+    _startConversation();
+  }
+
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {

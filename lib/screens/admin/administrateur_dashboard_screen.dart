@@ -19,6 +19,11 @@ class _AdministrateurDashboardScreenState extends State<AdministrateurDashboardS
     NavEntry(Icons.people_outline, 'Gestion des comptes'),
   ];
 
+  // Couleurs additionnelles pour les statistiques (catégories qui n'ont pas
+  // d'équivalent direct dans AppColors).
+  static const Color _statTeal = Color(0xFF2D6E8E); // Étudiants
+  static const Color _statPlum = Color(0xFF7C3F55); // Candidatures
+
   Map<String, dynamic>? _stats;
   List<dynamic> _offres = [];
   List<dynamic> _comptes = [];
@@ -35,7 +40,7 @@ class _AdministrateurDashboardScreenState extends State<AdministrateurDashboardS
     setState(() => _loading = true);
     try {
       final stats = await ApiClient.instance.get('/admin/stats');
-      
+
       // Load offres
       var responseOffres = await ApiClient.instance.get('/admin/offres?statut=en_attente');
       List<dynamic> fetchedOffres = _extractList(responseOffres);
@@ -88,9 +93,42 @@ class _AdministrateurDashboardScreenState extends State<AdministrateurDashboardS
     }
   }
 
+  /// Bloque ou débloque un compte.
+  ///
+  /// Le blocage demande une confirmation (action sensible qui empêche
+  /// l'utilisateur de se connecter), le déblocage est immédiat. Le statut
+  /// affiché ("Actif" / "Bloqué") est mis à jour tout de suite à l'écran
+  /// (mise à jour optimiste), sans attendre un rechargement complet ; en cas
+  /// d'échec de la requête, le changement est annulé et l'admin en est informé.
   Future<void> _toggleEtatCompte(dynamic compte) async {
     final bool estActif = compte['actif'] ?? true;
     final String action = estActif ? 'bloquer' : 'debloquer';
+
+    if (estActif) {
+      final confirm = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Bloquer ce compte ?'),
+          content: Text(
+            "${compte['email'] ?? 'Ce compte'} ne pourra plus se connecter tant qu'il n'aura pas été débloqué. "
+                "Vous pourrez le débloquer à tout moment depuis cette même liste.",
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Annuler')),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Bloquer', style: TextStyle(color: Colors.red)),
+            ),
+          ],
+        ),
+      );
+      if (confirm != true) return;
+    }
+
+    // Mise à jour optimiste : le badge de statut passe immédiatement à
+    // "Bloqué" (ou "Actif"), et l'icône se transforme en son opposée.
+    setState(() => compte['actif'] = !estActif);
+
     try {
       await ApiClient.instance.patch('/admin/comptes/${compte['id']}/$action', {});
       if (mounted) {
@@ -98,9 +136,11 @@ class _AdministrateurDashboardScreenState extends State<AdministrateurDashboardS
           SnackBar(content: Text('Compte ${estActif ? 'bloqué' : 'débloqué'} avec succès')),
         );
       }
-      _load();
     } catch (e) {
+      // La requête a échoué côté serveur : on annule le changement visuel
+      // pour ne pas afficher un statut qui n'a pas réellement été appliqué.
       if (mounted) {
+        setState(() => compte['actif'] = estActif);
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur: $e')));
       }
     }
@@ -166,42 +206,135 @@ class _AdministrateurDashboardScreenState extends State<AdministrateurDashboardS
       child: _loading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
-              onRefresh: _load,
-              child: content,
-            ),
+        onRefresh: _load,
+        child: content,
+      ),
     );
+  }
+
+  /// Parse une valeur de stat qui peut arriver en int, double ou String depuis l'API.
+  int _asInt(dynamic value) {
+    if (value == null) return 0;
+    if (value is int) return value;
+    if (value is double) return value.round();
+    if (value is String) return int.tryParse(value) ?? 0;
+    return 0;
   }
 
   Widget _buildStats() {
     final s = _stats ?? {};
+
+    final int nbEtudiants = _asInt(s['nbEtudiants']);
+    final int nbEntreprises = _asInt(s['nbEntreprises']);
+    final int nbOffres = _asInt(s['nbOffres']);
+    final int nbCandidatures = _asInt(s['nbCandidatures']);
+    final int maxVal = [nbEtudiants, nbEntreprises, nbOffres, nbCandidatures]
+        .fold(1, (a, b) => b > a ? b : a); // évite division par zéro
+
     return GridView.count(
       padding: const EdgeInsets.all(24),
       crossAxisCount: MediaQuery.of(context).size.width > 700 ? 4 : 2,
       mainAxisSpacing: 16,
       crossAxisSpacing: 16,
-      childAspectRatio: 1.4,
+      childAspectRatio: 1.15,
       children: [
-        _statCard('Étudiants', s['nbEtudiants']),
-        _statCard('Entreprises', s['nbEntreprises']),
-        _statCard('Offres Total', s['nbOffres']),
-        _statCard('Candidatures', s['nbCandidatures']),
+        _statCard(
+          icon: Icons.school_outlined,
+          label: 'Étudiants',
+          value: nbEtudiants,
+          color: _statTeal,
+          maxVal: maxVal,
+        ),
+        _statCard(
+          icon: Icons.apartment_outlined,
+          label: 'Entreprises',
+          value: nbEntreprises,
+          color: AppColors.darkGreen,
+          maxVal: maxVal,
+        ),
+        _statCard(
+          icon: Icons.work_outline,
+          label: 'Offres Total',
+          value: nbOffres,
+          color: AppColors.gold,
+          maxVal: maxVal,
+        ),
+        _statCard(
+          icon: Icons.forum_outlined,
+          label: 'Candidatures',
+          value: nbCandidatures,
+          color: _statPlum,
+          maxVal: maxVal,
+        ),
       ],
     );
   }
 
-  Widget _statCard(String label, dynamic value) => Container(
-    decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(14),
-      boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)]),
-    alignment: Alignment.center,
-    child: Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text('${value ?? 0}', style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: AppColors.darkGreen)),
-        const SizedBox(height: 6),
-        Text(label, style: const TextStyle(fontSize: 12, color: AppColors.textMuted)),
-      ],
-    ),
-  );
+  Widget _statCard({
+    required IconData icon,
+    required String label,
+    required int value,
+    required Color color,
+    required int maxVal,
+  }) {
+    final double ratio = maxVal == 0 ? 0 : (value / maxVal).clamp(0.0, 1.0);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Bandeau de couleur en haut, propre à la catégorie
+          Container(height: 4, color: color),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(18, 16, 18, 14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(icon, size: 18, color: color),
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  '$value',
+                  style: TextStyle(fontSize: 30, fontWeight: FontWeight.w800, color: color),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  label,
+                  style: const TextStyle(fontSize: 12.5, color: AppColors.textMuted),
+                ),
+                const SizedBox(height: 12),
+                // Barre de proportion : représente la part de cette catégorie
+                // par rapport à la plus grande valeur des 4 statistiques.
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: ratio,
+                    minHeight: 5,
+                    backgroundColor: color.withOpacity(0.12),
+                    valueColor: AlwaysStoppedAnimation<Color>(color),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _buildOffresAValider() {
     if (_offres.isEmpty) {
@@ -235,10 +368,10 @@ class _AdministrateurDashboardScreenState extends State<AdministrateurDashboardS
                   onPressed: () => _showOffreDetails(o),
                   tooltip: 'Voir',
                 ),
-                IconButton(icon: const Icon(Icons.check_circle, color: Colors.green), 
-                  onPressed: () => _validerOffre(o['id'].toString(), 'validee')),
-                IconButton(icon: const Icon(Icons.cancel, color: Colors.red), 
-                  onPressed: () => _validerOffre(o['id'].toString(), 'rejetee')),
+                IconButton(icon: const Icon(Icons.check_circle, color: Colors.green),
+                    onPressed: () => _validerOffre(o['id'].toString(), 'validee')),
+                IconButton(icon: const Icon(Icons.cancel, color: Colors.red),
+                    onPressed: () => _validerOffre(o['id'].toString(), 'rejetee')),
               ],
             ),
           ),
@@ -264,12 +397,12 @@ class _AdministrateurDashboardScreenState extends State<AdministrateurDashboardS
           child: ListTile(
             leading: CircleAvatar(
               backgroundColor: c['role'] == 'entreprise' ? AppColors.gold.withOpacity(0.2) : AppColors.darkGreen.withOpacity(0.2),
-              child: Icon(c['role'] == 'entreprise' ? Icons.business : Icons.person, 
-                color: c['role'] == 'entreprise' ? AppColors.gold : AppColors.darkGreen),
+              child: Icon(c['role'] == 'entreprise' ? Icons.business : Icons.person,
+                  color: c['role'] == 'entreprise' ? AppColors.gold : AppColors.darkGreen),
             ),
             title: Text(c['email'] ?? 'Sans email', style: const TextStyle(fontWeight: FontWeight.bold)),
-            subtitle: Text('Rôle: ${c['role']} • ${estActif ? 'Actif' : 'Bloqué'}', 
-              style: TextStyle(color: estActif ? Colors.green : Colors.red, fontSize: 12)),
+            subtitle: Text('Rôle: ${c['role']} • ${estActif ? 'Actif' : 'Bloqué'}',
+                style: TextStyle(color: estActif ? Colors.green : Colors.red, fontSize: 12)),
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
