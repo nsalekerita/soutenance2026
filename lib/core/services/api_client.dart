@@ -19,8 +19,15 @@ class ApiClient {
   final _storage = const FlutterSecureStorage();
   static const _tokenKey = 'iai_horizon_token';
 
-  Future<String?> get token async => _storage.read(key: _tokenKey);
-  Future<void> saveToken(String token) => _storage.write(key: _tokenKey, value: token);
+  Future<String?> get token async {
+    try {
+      return await _storage.read(key: _tokenKey).timeout(const Duration(seconds: 5));
+    } catch (_) {
+      return null;
+    }
+  }
+  Future<void> saveToken(String token) =>
+      _storage.write(key: _tokenKey, value: token);
   Future<void> clearToken() => _storage.delete(key: _tokenKey);
 
   static const Duration _timeout = Duration(seconds: 15);
@@ -37,7 +44,8 @@ class ApiClient {
   Future<http.Response> _withTimeout(Future<http.Response> request) {
     return request.timeout(
       _timeout,
-      onTimeout: () => throw ApiException('Le serveur met trop de temps à répondre. Réessayez.', 0),
+      onTimeout: () => throw ApiException(
+          'Le serveur met trop de temps à répondre. Réessayez.', 0),
     );
   }
 
@@ -48,7 +56,8 @@ class ApiClient {
     return _handle(res);
   }
 
-  Future<dynamic> post(String path, Map<String, dynamic> body, {bool auth = true}) async {
+  Future<dynamic> post(String path, Map<String, dynamic> body,
+      {bool auth = true}) async {
     final res = await _withTimeout(
       http.post(
         Uri.parse('$baseUrl$path'),
@@ -59,7 +68,8 @@ class ApiClient {
     return _handle(res);
   }
 
-  Future<dynamic> patch(String path, Map<String, dynamic> body, {bool auth = true}) async {
+  Future<dynamic> patch(String path, Map<String, dynamic> body,
+      {bool auth = true}) async {
     final res = await _withTimeout(
       http.patch(
         Uri.parse('$baseUrl$path'),
@@ -70,7 +80,8 @@ class ApiClient {
     return _handle(res);
   }
 
-  Future<dynamic> put(String path, Map<String, dynamic> body, {bool auth = true}) async {
+  Future<dynamic> put(String path, Map<String, dynamic> body,
+      {bool auth = true}) async {
     final res = await _withTimeout(
       http.put(
         Uri.parse('$baseUrl$path'),
@@ -81,9 +92,14 @@ class ApiClient {
     return _handle(res);
   }
 
-  Future<dynamic> delete(String path, {bool auth = true}) async {
+  Future<dynamic> delete(String path,
+      {Map<String, dynamic>? body, bool auth = true}) async {
     final res = await _withTimeout(
-      http.delete(Uri.parse('$baseUrl$path'), headers: await _headers(auth: auth)),
+      http.delete(
+        Uri.parse('$baseUrl$path'),
+        headers: await _headers(auth: auth),
+        body: body != null ? jsonEncode(body) : null,
+      ),
     );
     return _handle(res);
   }
@@ -93,15 +109,23 @@ class ApiClient {
     if (res.statusCode >= 200 && res.statusCode < 300) {
       return decoded is Map ? decoded['data'] : decoded;
     }
-    final message = decoded is Map ? (decoded['message'] ?? 'Erreur inconnue') : 'Erreur inconnue';
-    throw ApiException(message.toString(), res.statusCode);
+    final message = decoded is Map
+        ? (decoded['message'] ?? 'Erreur inconnue')
+        : 'Erreur inconnue';
+    final details = decoded is Map ? decoded['details'] : null;
+    throw ApiException(
+      message.toString(),
+      res.statusCode,
+      details is Map ? Map<String, dynamic>.from(details) : null,
+    );
   }
 }
 
 class ApiException implements Exception {
   final String message;
   final int statusCode;
-  ApiException(this.message, this.statusCode);
+  final Map<String, dynamic>? details;
+  ApiException(this.message, this.statusCode, [this.details]);
   @override
   String toString() => message;
 }

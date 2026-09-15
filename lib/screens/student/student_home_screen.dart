@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/services/api_client.dart';
 import '../../theme/app_colors.dart';
+import '../../widgets/app_card.dart';
 
 /// Écran "Accueil" du dashboard étudiant.
 /// Regroupe : message de bienvenue, avancement du profil, statistiques de
@@ -40,14 +41,15 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
         _api.get('/profils/moi'),
         _api.get('/candidatures/moi'),
       ]);
+      if (!mounted) return;
       setState(() {
         _profil = results[0] as Map<String, dynamic>;
         _candidatures = results[1] as List<dynamic>;
       });
     } catch (e) {
-      setState(() => _error = e.toString());
+      if (mounted) setState(() => _error = e.toString());
     } finally {
-      setState(() => _loading = false);
+      if (mounted) setState(() => _loading = false);
     }
   }
 
@@ -147,14 +149,17 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
           const SizedBox(height: 16),
 
           // --- Statistiques de candidatures ---
-          Row(
-            children: [
-              Expanded(child: _statCard('Candidatures', '$total', Icons.assignment_outlined)),
-              const SizedBox(width: 12),
-              Expanded(child: _statCard('En attente', '$enAttente', Icons.hourglass_empty)),
-              const SizedBox(width: 12),
-              Expanded(child: _statCard('Acceptées', '$acceptees', Icons.check_circle_outline)),
-            ],
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(child: _statCard('Candidatures', '$total', Icons.assignment_outlined)),
+                const SizedBox(width: 10),
+                Expanded(child: _statCard('En attente', '$enAttente', Icons.hourglass_empty)),
+                const SizedBox(width: 10),
+                Expanded(child: _statCard('Acceptées', '$acceptees', Icons.check_circle_outline)),
+              ],
+            ),
           ),
           const SizedBox(height: 24),
 
@@ -162,24 +167,25 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
           const Text('Accès rapides',
               style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.darkGreen, fontSize: 15)),
           const SizedBox(height: 12),
-          GridView.count(
-            crossAxisCount: 2,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-            childAspectRatio: 1.5,
-            children: [
-              _quickAction(Icons.quiz_outlined, "Test d'orientation",
-                  "Découvre les filières qui te correspondent", () => widget.onNavigate(2)),
-              _quickAction(Icons.smart_toy_outlined, 'Assistant IA',
-                  'Pose tes questions sur ton orientation', () => widget.onNavigate(3)),
-              _quickAction(Icons.work_outline, 'Offres',
-                  'Consulte les stages et emplois disponibles', () => widget.onNavigate(4)),
-              _quickAction(Icons.assignment_turned_in_outlined, 'Mes candidatures',
-                  'Suis l\'état de tes candidatures', () => widget.onNavigate(5)),
-            ],
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(
+                  child: _quickAction(Icons.quiz_outlined, "Test d'orientation",
+                    "Découvre les filières qui te correspondent", () => widget.onNavigate(2)),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _quickAction(Icons.work_outline, 'Offres',
+                    'Consulte les stages et emplois disponibles', () => widget.onNavigate(4)),
+                ),
+              ],
+            ),
           ),
+          const SizedBox(height: 12),
+          _quickAction(Icons.assignment_turned_in_outlined, 'Mes candidatures',
+            'Suis l\'état de tes candidatures', () => widget.onNavigate(5)),
           const SizedBox(height: 24),
 
           // --- Candidatures récentes ---
@@ -194,63 +200,86 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
     );
   }
 
-  Widget _card({required Widget child}) => Container(
-    padding: const EdgeInsets.all(16),
-    decoration: BoxDecoration(
-      color: AppColors.white,
-      borderRadius: BorderRadius.circular(14),
-    ),
-    child: child,
-  );
+  Widget _card({required Widget child}) => AppCard(child: child);
 
   Widget _statCard(String label, String value, IconData icon) => _card(
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
       children: [
         Icon(icon, color: AppColors.darkGreen, size: 20),
         const SizedBox(height: 8),
-        Text(value, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.textDark)),
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: Text(value,
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.textDark)),
+        ),
         const SizedBox(height: 2),
-        Text(label, style: const TextStyle(fontSize: 11, color: AppColors.textMuted)),
+        Text(label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 11, color: AppColors.textMuted)),
       ],
     ),
   );
 
-  Widget _quickAction(IconData icon, String title, String subtitle, VoidCallback onTap) => InkWell(
-    borderRadius: BorderRadius.circular(14),
+  Widget _quickAction(IconData icon, String title, String subtitle, VoidCallback onTap) => AppCard(
+    padding: const EdgeInsets.all(14),
     onTap: onTap,
-    child: Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Icon(icon, color: AppColors.gold, size: 22),
-          Text(title,
-              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: AppColors.textDark)),
-          Text(subtitle,
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisAlignment: MainAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: AppColors.gold.withOpacity(0.14),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(icon, color: AppColors.gold, size: 20),
+        ),
+        const SizedBox(height: 10),
+        Text(title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: AppColors.textDark)),
+        const SizedBox(height: 4),
+        Flexible(
+          child: Text(subtitle,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(fontSize: 11, color: AppColors.textMuted)),
-        ],
-      ),
+        ),
+      ],
     ),
   );
 
   Color _statutColor(String statut) {
     switch (statut) {
       case 'acceptee':
-        return AppColors.darkGreen;
+        return AppColors.success;
       case 'refusee':
-        return Colors.red;
+        return AppColors.error;
       case 'vue':
-        return AppColors.gold;
+        return AppColors.warning;
       default:
         return AppColors.textMuted;
+    }
+  }
+
+  Color _statutBackground(String statut) {
+    switch (statut) {
+      case 'acceptee':
+        return AppColors.successBackground;
+      case 'refusee':
+        return AppColors.errorBackground;
+      case 'vue':
+        return AppColors.warningBackground;
+      default:
+        return AppColors.background;
     }
   }
 
@@ -259,27 +288,33 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
     final statut = c['statut'] ?? '';
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(12)),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(offre?['titre'] ?? '',
-                    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: AppColors.textDark)),
-                Text(offre?['entreprises']?['nom'] ?? '',
-                    style: const TextStyle(fontSize: 11, color: AppColors.textMuted)),
-              ],
+      child: AppCard(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(offre?['titre'] ?? '',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: AppColors.textDark)),
+                  Text(offre?['entreprises']?['nom'] ?? '',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 11, color: AppColors.textMuted)),
+                ],
+              ),
             ),
-          ),
-          Chip(
-            label: Text(statut, style: TextStyle(color: _statutColor(statut), fontSize: 11, fontWeight: FontWeight.w600)),
-            backgroundColor: _statutColor(statut).withOpacity(0.12),
-            visualDensity: VisualDensity.compact,
-          ),
-        ],
+            const SizedBox(width: 8),
+            StatusBadge(
+              label: statut,
+              color: _statutColor(statut),
+              background: _statutBackground(statut),
+            ),
+          ],
+        ),
       ),
     );
   }

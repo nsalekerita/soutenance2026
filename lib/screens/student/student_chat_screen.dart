@@ -74,7 +74,7 @@ class _StudentChatScreenState extends State<StudentChatScreen> {
       setState(() => _messages.add(_Message('assistant', data['reponse'])));
       _scrollToBottom();
     } catch (e) {
-      setState(() => _messages.add(_Message('assistant', 'Désolé, une erreur est survenue: $e')));
+      setState(() => _messages.add(_Message('assistant', 'Désolé, ${friendlyApiError(e)}')));
       _scrollToBottom();
     } finally {
       setState(() => _sending = false);

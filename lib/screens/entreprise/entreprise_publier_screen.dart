@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/services/api_client.dart';
 import '../../theme/app_colors.dart';
+import '../../widgets/app_card.dart';
 
 /// Cas d'utilisation "Publier une offre" (implicite dans le dashboard entreprise).
 class EntreprisePublierScreen extends StatefulWidget {
@@ -8,7 +9,8 @@ class EntreprisePublierScreen extends StatefulWidget {
   const EntreprisePublierScreen({super.key, this.initialData});
 
   @override
-  State<EntreprisePublierScreen> createState() => _EntreprisePublierScreenState();
+  State<EntreprisePublierScreen> createState() =>
+      _EntreprisePublierScreenState();
 }
 
 class _EntreprisePublierScreenState extends State<EntreprisePublierScreen> {
@@ -48,7 +50,8 @@ class _EntreprisePublierScreenState extends State<EntreprisePublierScreen> {
     _description = TextEditingController(text: d?['description']?.toString());
     _missions = TextEditingController(text: d?['missions']?.toString());
     _localisation = TextEditingController(text: d?['localisation']?.toString());
-    _conditions = TextEditingController(text: d?['conditions_candidature']?.toString());
+    _conditions =
+        TextEditingController(text: d?['conditions_candidature']?.toString());
     _competenceInput = TextEditingController();
 
     final initCompetences = d?['competences_requises'];
@@ -105,7 +108,8 @@ class _EntreprisePublierScreenState extends State<EntreprisePublierScreen> {
       };
 
       if (widget.initialData != null) {
-        await ApiClient.instance.put('/offres/${widget.initialData!['id']}', body);
+        await ApiClient.instance
+            .put('/offres/${widget.initialData!['id']}', body);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text("Offre modifiée avec succès.")),
@@ -116,7 +120,8 @@ class _EntreprisePublierScreenState extends State<EntreprisePublierScreen> {
         await ApiClient.instance.post('/offres', body);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Offre publiée, en attente de validation.")),
+            const SnackBar(
+                content: Text("Offre publiée, en attente de validation.")),
           );
           _titre.clear();
           _description.clear();
@@ -132,7 +137,8 @@ class _EntreprisePublierScreenState extends State<EntreprisePublierScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur : $e')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Erreur : $e')));
       }
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -145,166 +151,169 @@ class _EntreprisePublierScreenState extends State<EntreprisePublierScreen> {
 
     return Scaffold(
       // Ivoire chaud, cohérent avec l'identité visuelle de la plateforme.
-      // Remplacer par AppColors.paper si vous ajoutez cette constante.
-      backgroundColor: const Color(0xFFF7F4EE),
+      backgroundColor: AppColors.paper,
       appBar: isEdit
           ? AppBar(
-        title: const Text("Modifier l'offre"),
-        backgroundColor: AppColors.darkGreen,
-        foregroundColor: Colors.white,
-        elevation: 0,
-      )
+              title: const Text("Modifier l'offre"),
+              backgroundColor: AppColors.darkGreen,
+              foregroundColor: Colors.white,
+              elevation: 0,
+            )
           : null,
       body: SafeArea(
-        child: Form(
-          key: _formKey,
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
-            children: [
-              Text(
-                isEdit ? 'Modifier votre offre' : 'Publier une offre',
-                style: TextStyle(
-                  fontSize: 19,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.darkGreen,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                isEdit
-                    ? 'Ajustez les détails ci-dessous.'
-                    : 'Renseignez les détails du poste à publier.',
-                style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
-              ),
-              const SizedBox(height: 20),
-
-              _SectionCard(
-                icon: Icons.work_outline_rounded,
-                title: 'Le poste',
-                children: [
-                  _buildTextField(
-                    controller: _titre,
-                    label: 'Titre du poste',
-                    hint: 'Ex. Développeur mobile Flutter — stagiaire',
-                    validator: (v) =>
-                    (v == null || v.trim().isEmpty) ? 'Champ requis' : null,
-                  ),
-                  const SizedBox(height: 14),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildDropdown(
-                          label: "Type d'offre",
-                          value: _type,
-                          items: _types,
-                          onChanged: (v) => setState(() => _type = v ?? 'stage'),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _buildDropdown(
-                          label: 'Niveau requis',
-                          value: _niveauEtude,
-                          items: _niveaux,
-                          onChanged: (v) =>
-                              setState(() => _niveauEtude = v ?? 'licence'),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-                  _buildTextField(
-                    controller: _localisation,
-                    label: 'Localisation',
-                    hint: 'Ex. Yaoundé, Cameroun — présentiel',
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 16),
-
-              _SectionCard(
-                icon: Icons.description_outlined,
-                title: 'Description',
-                children: [
-                  _buildTextField(
-                    controller: _description,
-                    label: 'Description du poste',
-                    hint: "Contexte, équipe, quotidien de l'étudiant",
-                    maxLines: 4,
-                    validator: (v) =>
-                    (v == null || v.trim().isEmpty) ? 'Champ requis' : null,
-                  ),
-                  const SizedBox(height: 14),
-                  _buildTextField(
-                    controller: _missions,
-                    label: 'Missions principales',
-                    hint: 'Une mission par ligne',
-                    maxLines: 3,
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 16),
-
-              _SectionCard(
-                icon: Icons.psychology_outlined,
-                title: 'Profil recherché',
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 720),
+            child: Form(
+              key: _formKey,
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
                 children: [
                   Text(
-                    'Compétences recherchées',
+                    isEdit ? 'Modifier votre offre' : 'Publier une offre',
                     style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
+                      fontSize: 19,
+                      fontWeight: FontWeight.w700,
                       color: AppColors.darkGreen,
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  _buildCompetencesInput(),
-                  const SizedBox(height: 14),
-                  _buildTextField(
-                    controller: _conditions,
-                    label: 'Conditions de candidature',
-                    hint: 'Ex. CV et lettre de motivation avant le 30 octobre',
-                    maxLines: 2,
+                  const SizedBox(height: 4),
+                  Text(
+                    isEdit
+                        ? 'Ajustez les détails ci-dessous.'
+                        : 'Renseignez les détails du poste à publier.',
+                    style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+                  ),
+                  const SizedBox(height: 20),
+                  _SectionCard(
+                    icon: Icons.work_outline_rounded,
+                    title: 'Le poste',
+                    children: [
+                      _buildTextField(
+                        controller: _titre,
+                        label: 'Titre du poste',
+                        hint: 'Ex. Développeur mobile Flutter — stagiaire',
+                        validator: (v) => (v == null || v.trim().isEmpty)
+                            ? 'Champ requis'
+                            : null,
+                      ),
+                      const SizedBox(height: 14),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildDropdown(
+                              label: "Type d'offre",
+                              value: _type,
+                              items: _types,
+                              onChanged: (v) =>
+                                  setState(() => _type = v ?? 'stage'),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _buildDropdown(
+                              label: 'Niveau requis',
+                              value: _niveauEtude,
+                              items: _niveaux,
+                              onChanged: (v) =>
+                                  setState(() => _niveauEtude = v ?? 'licence'),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+                      _buildTextField(
+                        controller: _localisation,
+                        label: 'Localisation',
+                        hint: 'Ex. Yaoundé, Cameroun — présentiel',
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  _SectionCard(
+                    icon: Icons.description_outlined,
+                    title: 'Description',
+                    children: [
+                      _buildTextField(
+                        controller: _description,
+                        label: 'Description du poste',
+                        hint: "Contexte, équipe, quotidien de l'étudiant",
+                        maxLines: 4,
+                        validator: (v) => (v == null || v.trim().isEmpty)
+                            ? 'Champ requis'
+                            : null,
+                      ),
+                      const SizedBox(height: 14),
+                      _buildTextField(
+                        controller: _missions,
+                        label: 'Missions principales',
+                        hint: 'Une mission par ligne',
+                        maxLines: 3,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  _SectionCard(
+                    icon: Icons.psychology_outlined,
+                    title: 'Profil recherché',
+                    children: [
+                      Text(
+                        'Compétences recherchées',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.darkGreen,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      _buildCompetencesInput(),
+                      const SizedBox(height: 14),
+                      _buildTextField(
+                        controller: _conditions,
+                        label: 'Conditions de candidature',
+                        hint:
+                            'Ex. CV et lettre de motivation avant le 30 octobre',
+                        maxLines: 2,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 26),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: _loading ? null : _submit,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.darkGreen,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 0,
+                      ),
+                      child: _loading
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : Text(
+                              isEdit
+                                  ? 'Enregistrer les modifications'
+                                  : "Publier l'offre",
+                              style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                    ),
                   ),
                 ],
               ),
-
-              const SizedBox(height: 26),
-
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _loading ? null : _submit,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.darkGreen,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    elevation: 0,
-                  ),
-                  child: _loading
-                      ? const SizedBox(
-                    height: 20,
-                    width: 20,
-                    child: CircularProgressIndicator(
-                      color: Colors.white,
-                      strokeWidth: 2,
-                    ),
-                  )
-                      : Text(
-                    isEdit ? 'Enregistrer les modifications' : "Publier l'offre",
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ),
@@ -322,25 +331,7 @@ class _EntreprisePublierScreenState extends State<EntreprisePublierScreen> {
       controller: controller,
       maxLines: maxLines,
       validator: validator,
-      decoration: InputDecoration(
-        labelText: label,
-        hintText: hint,
-        filled: true,
-        fillColor: Colors.white,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(color: Colors.grey.shade300),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(color: Colors.grey.shade300),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(color: AppColors.darkGreen, width: 1.6),
-        ),
-      ),
+      decoration: appInputDecoration(label: label, hint: hint),
     );
   }
 
@@ -354,24 +345,7 @@ class _EntreprisePublierScreenState extends State<EntreprisePublierScreen> {
       value: value,
       items: items,
       onChanged: onChanged,
-      decoration: InputDecoration(
-        labelText: label,
-        filled: true,
-        fillColor: Colors.white,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(color: Colors.grey.shade300),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(color: Colors.grey.shade300),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(color: AppColors.darkGreen, width: 1.6),
-        ),
-      ),
+      decoration: appInputDecoration(label: label),
     );
   }
 
@@ -391,10 +365,11 @@ class _EntreprisePublierScreenState extends State<EntreprisePublierScreen> {
         crossAxisAlignment: WrapCrossAlignment.center,
         children: [
           ..._competences.map(
-                (c) => Chip(
-              label: Text(c, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600)),
-              // Vert forêt clair — remplacer par AppColors.forestSoft si disponible.
-              backgroundColor: const Color(0xFFE8EFEA),
+            (c) => Chip(
+              label: Text(c,
+                  style: const TextStyle(
+                      fontSize: 12.5, fontWeight: FontWeight.w600)),
+              backgroundColor: AppColors.sage,
               labelStyle: TextStyle(color: AppColors.darkGreen),
               deleteIcon: const Icon(Icons.close, size: 15),
               onDeleted: () => _removeCompetence(c),
@@ -440,7 +415,7 @@ class _SectionCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFFCFBF8),
+        color: AppColors.paper,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: Colors.grey.shade200),
       ),

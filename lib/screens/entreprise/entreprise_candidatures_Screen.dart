@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/services/api_client.dart';
 import '../../theme/app_colors.dart';
+import '../../widgets/app_card.dart';
 import 'entreprise_chat_screen.dart';
 
 /// Candidatures reçues pour une offre donnée : l'entreprise peut examiner
@@ -18,10 +19,12 @@ class EntrepriseCandidaturesScreen extends StatefulWidget {
   });
 
   @override
-  State<EntrepriseCandidaturesScreen> createState() => _EntrepriseCandidaturesScreenState();
+  State<EntrepriseCandidaturesScreen> createState() =>
+      _EntrepriseCandidaturesScreenState();
 }
 
-class _EntrepriseCandidaturesScreenState extends State<EntrepriseCandidaturesScreen> {
+class _EntrepriseCandidaturesScreenState
+    extends State<EntrepriseCandidaturesScreen> {
   List<dynamic> _candidatures = [];
   bool _loading = true;
   final Set<String> _actionEnCours = {};
@@ -37,7 +40,8 @@ class _EntrepriseCandidaturesScreenState extends State<EntrepriseCandidaturesScr
     setState(() => _loading = true);
 
     try {
-      final data = await ApiClient.instance.get('/candidatures/offre/${widget.offreId}');
+      final data =
+          await ApiClient.instance.get('/candidatures/offre/${widget.offreId}');
       if (!mounted) return;
       setState(() {
         _candidatures = data is List<dynamic> ? data : <dynamic>[];
@@ -53,15 +57,40 @@ class _EntrepriseCandidaturesScreenState extends State<EntrepriseCandidaturesScr
   }
 
   Future<void> _accepter(String candidatureId) async {
+    final confirme = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Accepter la candidature ?'),
+        content: const Text(
+            'Cette action est définitive et l\'étudiant en sera informé.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Annuler')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child:
+                const Text('Accepter', style: TextStyle(color: AppColors.success)),
+          ),
+        ],
+      ),
+    );
+    if (confirme != true) return;
+
     setState(() => _actionEnCours.add(candidatureId));
     try {
-      await ApiClient.instance.patch('/candidatures/$candidatureId/accepter', {});
+      await ApiClient.instance
+          .patch('/candidatures/$candidatureId/accepter', {});
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Candidature acceptée.')));
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Candidature acceptée.')));
       }
       await _load();
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(friendlyApiError(e))));
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(friendlyApiError(e))));
+      }
     } finally {
       if (mounted) setState(() => _actionEnCours.remove(candidatureId));
     }
@@ -72,12 +101,15 @@ class _EntrepriseCandidaturesScreenState extends State<EntrepriseCandidaturesScr
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Refuser la candidature ?'),
-        content: const Text('Cette action est définitive et l\'étudiant en sera informé.'),
+        content: const Text(
+            'Cette action est définitive et l\'étudiant en sera informé.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Annuler')),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Refuser', style: TextStyle(color: Colors.red)),
+            child: const Text('Refuser', style: TextStyle(color: AppColors.error)),
           ),
         ],
       ),
@@ -86,13 +118,18 @@ class _EntrepriseCandidaturesScreenState extends State<EntrepriseCandidaturesScr
 
     setState(() => _actionEnCours.add(candidatureId));
     try {
-      await ApiClient.instance.patch('/candidatures/$candidatureId/refuser', {});
+      await ApiClient.instance
+          .patch('/candidatures/$candidatureId/refuser', {});
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Candidature refusée.')));
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Candidature refusée.')));
       }
       await _load();
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(friendlyApiError(e))));
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(friendlyApiError(e))));
+      }
     } finally {
       if (mounted) setState(() => _actionEnCours.remove(candidatureId));
     }
@@ -104,8 +141,11 @@ class _EntrepriseCandidaturesScreenState extends State<EntrepriseCandidaturesScr
       MaterialPageRoute(
         builder: (_) => EntrepriseChatScreen(
           etudiantId: (etudiant['id'] ?? candidature['etudiant_id']).toString(),
-          etudiantNom: etudiant['nom_complet'] ?? '${etudiant['prenom'] ?? ''} ${etudiant['nom'] ?? ''}'.trim() != '' 
-              ? '${etudiant['prenom'] ?? ''} ${etudiant['nom'] ?? ''}'.trim() 
+          etudiantNom: etudiant['nom_complet'] ??
+                  '${etudiant['prenom'] ?? ''} ${etudiant['nom'] ?? ''}'
+                          .trim() !=
+                      ''
+              ? '${etudiant['prenom'] ?? ''} ${etudiant['nom'] ?? ''}'.trim()
               : 'Étudiant',
         ),
       ),
@@ -116,12 +156,25 @@ class _EntrepriseCandidaturesScreenState extends State<EntrepriseCandidaturesScr
     switch (statut) {
       case 'acceptee':
       case 'acceptée':
-        return Colors.green;
+        return AppColors.success;
       case 'refusee':
       case 'refusée':
-        return Colors.red;
+        return AppColors.error;
       default:
-        return Colors.orange;
+        return AppColors.warning;
+    }
+  }
+
+  Color _statutBackground(String? statut) {
+    switch (statut) {
+      case 'acceptee':
+      case 'acceptée':
+        return AppColors.successBackground;
+      case 'refusee':
+      case 'refusée':
+        return AppColors.errorBackground;
+      default:
+        return AppColors.warningBackground;
     }
   }
 
@@ -141,9 +194,11 @@ class _EntrepriseCandidaturesScreenState extends State<EntrepriseCandidaturesScr
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Text('Aucune candidature reçue pour le moment.', style: TextStyle(color: AppColors.textMuted)),
+                      const Text('Aucune candidature reçue pour le moment.',
+                          style: TextStyle(color: AppColors.textMuted)),
                       const SizedBox(height: 12),
-                      TextButton(onPressed: _load, child: const Text('Rafraîchir')),
+                      TextButton(
+                          onPressed: _load, child: const Text('Rafraîchir')),
                     ],
                   ),
                 )
@@ -158,11 +213,15 @@ class _EntrepriseCandidaturesScreenState extends State<EntrepriseCandidaturesScr
                       final etudiant = c['etudiants'] ?? c['etudiant'] ?? {};
                       final statut = c['statut']?.toString() ?? 'en_attente';
                       final enCours = _actionEnCours.contains(id);
-                      final enAttente = statut == 'en_attente' || statut == 'envoyee';
+                      final enAttente =
+                          statut == 'en_attente' || statut == 'envoyee';
 
                       String nomCandidat = 'Candidat';
-                      if (etudiant['nom'] != null || etudiant['prenom'] != null) {
-                        nomCandidat = '${etudiant['prenom'] ?? ''} ${etudiant['nom'] ?? ''}'.trim();
+                      if (etudiant['nom'] != null ||
+                          etudiant['prenom'] != null) {
+                        nomCandidat =
+                            '${etudiant['prenom'] ?? ''} ${etudiant['nom'] ?? ''}'
+                                .trim();
                       } else if (etudiant['nom_complet'] != null) {
                         nomCandidat = etudiant['nom_complet'];
                       }
@@ -170,8 +229,7 @@ class _EntrepriseCandidaturesScreenState extends State<EntrepriseCandidaturesScr
 
                       return Container(
                         margin: const EdgeInsets.only(bottom: 12),
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(12)),
+                        child: AppCard(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -180,41 +238,52 @@ class _EntrepriseCandidaturesScreenState extends State<EntrepriseCandidaturesScr
                                 Expanded(
                                   child: Text(
                                     nomCandidat,
-                                    style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.textDark),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.w700,
+                                        color: AppColors.textDark),
                                   ),
                                 ),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: _statutColor(statut).withOpacity(0.12),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: Text(
-                                    statut,
-                                    style: TextStyle(fontSize: 12, color: _statutColor(statut), fontWeight: FontWeight.w600),
-                                  ),
+                                const SizedBox(width: 8),
+                                StatusBadge(
+                                  label: statut,
+                                  color: _statutColor(statut),
+                                  background: _statutBackground(statut),
                                 ),
                               ],
                             ),
                             const SizedBox(height: 8),
-                            if (c['filiere'] != null || etudiant['filiere'] != null)
-                              Text('Filière: ${c['filiere'] ?? etudiant['filiere']}', style: const TextStyle(fontSize: 13)),
+                            if (c['filiere'] != null ||
+                                etudiant['filiere'] != null)
+                              Text(
+                                  'Filière: ${c['filiere'] ?? etudiant['filiere']}',
+                                  style: const TextStyle(fontSize: 13)),
                             if (c['niveau_etudes'] != null)
-                              Text('Niveau: ${c['niveau_etudes']}', style: const TextStyle(fontSize: 13)),
+                              Text('Niveau: ${c['niveau_etudes']}',
+                                  style: const TextStyle(fontSize: 13)),
                             if (c['universite'] != null)
-                              Text('École: ${c['universite']}', style: const TextStyle(fontSize: 13)),
-                            
+                              Text('École: ${c['universite']}',
+                                  style: const TextStyle(fontSize: 13)),
                             const Divider(height: 24),
-                            const Text('Pièces jointes :', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                            const Text('Pièces jointes :',
+                                style: TextStyle(
+                                    fontWeight: FontWeight.bold, fontSize: 12)),
                             const SizedBox(height: 8),
                             Wrap(
                               spacing: 8,
                               children: [
-                                if (c['cv_url'] != null) _fileButton('CV', c['cv_url']),
-                                if (c['lettre_motivation_url'] != null) _fileButton('LM', c['lettre_motivation_url']),
-                                if (c['releve_notes_url'] != null) _fileButton('Notes', c['releve_notes_url']),
-                                if (c['lettre_recommandation_url'] != null) _fileButton('Rec.', c['lettre_recommandation_url']),
-                                if (c['cni_url'] != null) _fileButton('CNI', c['cni_url']),
+                                if (c['cv_url'] != null)
+                                  _fileButton('CV', c['cv_url']),
+                                if (c['lettre_motivation_url'] != null)
+                                  _fileButton('LM', c['lettre_motivation_url']),
+                                if (c['releve_notes_url'] != null)
+                                  _fileButton('Notes', c['releve_notes_url']),
+                                if (c['lettre_recommandation_url'] != null)
+                                  _fileButton(
+                                      'Rec.', c['lettre_recommandation_url']),
+                                if (c['cni_url'] != null)
+                                  _fileButton('CNI', c['cni_url']),
                               ],
                             ),
                             const SizedBox(height: 12),
@@ -229,18 +298,22 @@ class _EntrepriseCandidaturesScreenState extends State<EntrepriseCandidaturesScr
                                 ),
                                 OutlinedButton.icon(
                                   onPressed: () => _contacter(c),
-                                  icon: const Icon(Icons.chat_bubble_outline, size: 18),
+                                  icon: const Icon(Icons.chat_bubble_outline,
+                                      size: 18),
                                   label: const Text('Discuter'),
                                 ),
                                 if (enAttente) ...[
                                   OutlinedButton.icon(
-                                    onPressed: enCours ? null : () => _refuser(id),
-                                    style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
+                                    onPressed:
+                                        enCours ? null : () => _refuser(id),
+                                    style: OutlinedButton.styleFrom(
+                                        foregroundColor: AppColors.error),
                                     icon: const Icon(Icons.close, size: 18),
                                     label: const Text('Refuser'),
                                   ),
                                   ElevatedButton.icon(
-                                    onPressed: enCours ? null : () => _accepter(id),
+                                    onPressed:
+                                        enCours ? null : () => _accepter(id),
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: AppColors.darkGreen,
                                       foregroundColor: AppColors.white,
@@ -249,7 +322,9 @@ class _EntrepriseCandidaturesScreenState extends State<EntrepriseCandidaturesScr
                                         ? const SizedBox(
                                             height: 14,
                                             width: 14,
-                                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                            child: CircularProgressIndicator(
+                                                color: Colors.white,
+                                                strokeWidth: 2),
                                           )
                                         : const Icon(Icons.check, size: 18),
                                     label: const Text('Accepter'),
@@ -258,6 +333,7 @@ class _EntrepriseCandidaturesScreenState extends State<EntrepriseCandidaturesScr
                               ],
                             ),
                           ],
+                        ),
                         ),
                       );
                     },
@@ -268,56 +344,69 @@ class _EntrepriseCandidaturesScreenState extends State<EntrepriseCandidaturesScr
 
   void _showDetails(dynamic c) {
     final etudiant = c['etudiants'] ?? c['etudiant'] ?? {};
-    final nomCandidat = '${c['prenom'] ?? etudiant['prenom'] ?? ''} ${c['nom'] ?? etudiant['nom'] ?? ''}'.trim() != ''
-        ? '${c['prenom'] ?? etudiant['prenom'] ?? ''} ${c['nom'] ?? etudiant['nom'] ?? ''}'.trim()
-        : 'Candidat';
+    final nomCandidat =
+        '${c['prenom'] ?? etudiant['prenom'] ?? ''} ${c['nom'] ?? etudiant['nom'] ?? ''}'
+                    .trim() !=
+                ''
+            ? '${c['prenom'] ?? etudiant['prenom'] ?? ''} ${c['nom'] ?? etudiant['nom'] ?? ''}'
+                .trim()
+            : 'Candidat';
 
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text('Détails de la candidature - $nomCandidat'),
         content: SizedBox(
-          width: 600,
+          width: MediaQuery.of(context).size.width < 640
+              ? MediaQuery.of(context).size.width * 0.85
+              : 600,
           child: SingleChildScrollView(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                _detailSection('Informations Personnelles', 
-                  'Genre: ${c['genre'] ?? 'Non précisé'}\n'
-                  'Né(e) le: ${c['date_naissance'] ?? 'Non précisé'}\n'
-                  'Nationalité: ${c['nationalite'] ?? 'Non précisée'}\n'
-                  'Adresse: ${c['adresse_complete'] ?? 'Non précisée'}'
-                ),
+                _detailSection(
+                    'Informations Personnelles',
+                    'Genre: ${c['genre'] ?? 'Non précisé'}\n'
+                        'Né(e) le: ${c['date_naissance'] ?? 'Non précisé'}\n'
+                        'Nationalité: ${c['nationalite'] ?? 'Non précisée'}\n'
+                        'Adresse: ${c['adresse_complete'] ?? 'Non précisée'}'),
                 const SizedBox(height: 16),
-                _detailSection('Informations Académiques', 
-                  'Université: ${c['universite'] ?? 'Non précisée'}\n'
-                  'Filière: ${c['filiere'] ?? 'Non précisée'}\n'
-                  'Niveau: ${c['niveau_etudes'] ?? 'Non précisé'} (${c['annee_etude'] ?? ''})'
-                ),
+                _detailSection(
+                    'Informations Académiques',
+                    'Université: ${c['universite'] ?? 'Non précisée'}\n'
+                        'Filière: ${c['filiere'] ?? 'Non précisée'}\n'
+                        'Niveau: ${c['niveau_etudes'] ?? 'Non précisé'} (${c['annee_etude'] ?? ''})'),
                 const SizedBox(height: 16),
-                _detailSection('Motivation / Message', c['message'] ?? 'Aucun message fourni.'),
+                _detailSection('Motivation / Message',
+                    c['message'] ?? 'Aucun message fourni.'),
                 const SizedBox(height: 16),
-                _detailSection('Disponibilité', 
-                  'Début: ${c['date_disponibilite'] ?? 'Non précisée'}\n'
-                  'Durée: ${c['duree_souhaitee'] ?? 'Non précisée'}'
-                ),
+                _detailSection(
+                    'Disponibilité',
+                    'Début: ${c['date_disponibilite'] ?? 'Non précisée'}\n'
+                        'Durée: ${c['duree_souhaitee'] ?? 'Non précisée'}'),
                 const SizedBox(height: 16),
-                _detailSection('Contact', 
-                  'Email: ${c['email'] ?? 'Non fourni'}\n'
-                  'Tél: ${c['telephone_contact'] ?? 'Non fourni'}'
-                ),
+                _detailSection(
+                    'Contact',
+                    'Email: ${c['email'] ?? 'Non fourni'}\n'
+                        'Tél: ${c['telephone_contact'] ?? 'Non fourni'}'),
                 const SizedBox(height: 16),
-                const Text('Documents joints', style: TextStyle(fontWeight: FontWeight.bold)),
+                const Text('Documents joints',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
                 const SizedBox(height: 8),
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
                   children: [
                     if (c['cv_url'] != null) _fileButton('CV', c['cv_url']),
-                    if (c['lettre_motivation_url'] != null) _fileButton('Lettre de motivation', c['lettre_motivation_url']),
-                    if (c['releve_notes_url'] != null) _fileButton('Relevé de notes', c['releve_notes_url']),
-                    if (c['lettre_recommandation_url'] != null) _fileButton('Lettre de recommandation', c['lettre_recommandation_url']),
+                    if (c['lettre_motivation_url'] != null)
+                      _fileButton(
+                          'Lettre de motivation', c['lettre_motivation_url']),
+                    if (c['releve_notes_url'] != null)
+                      _fileButton('Relevé de notes', c['releve_notes_url']),
+                    if (c['lettre_recommandation_url'] != null)
+                      _fileButton('Lettre de recommandation',
+                          c['lettre_recommandation_url']),
                     if (c['cni_url'] != null) _fileButton('CNI', c['cni_url']),
                   ],
                 ),
@@ -326,7 +415,8 @@ class _EntrepriseCandidaturesScreenState extends State<EntrepriseCandidaturesScr
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Fermer')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx), child: const Text('Fermer')),
         ],
       ),
     );
@@ -336,7 +426,9 @@ class _EntrepriseCandidaturesScreenState extends State<EntrepriseCandidaturesScr
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title, style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.darkGreen)),
+        Text(title,
+            style: const TextStyle(
+                fontWeight: FontWeight.bold, color: AppColors.darkGreen)),
         const SizedBox(height: 4),
         Text(content, style: const TextStyle(height: 1.4)),
       ],

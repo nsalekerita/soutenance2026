@@ -6,6 +6,7 @@ import 'student_test_screen.dart';
 import 'student_chat_screen.dart';
 import 'student_offres_screen.dart';
 import 'student_candidatures_screen.dart';
+import '../../theme/app_colors.dart';
 
 /// Dashboard étudiant : Accueil, Gérer profil, Passer le test d'orientation,
 /// Discuter avec l'assistant IA, Consulter/Postuler aux offres, Suivre sa
@@ -51,6 +52,14 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
       items: _items,
       selectedIndex: _index,
       onSelect: _goTo,
+      mobileIndices: const [0, 1, 4, 5],
+      floatingActionButton: FloatingActionButton(
+        tooltip: 'Ouvrir l’assistant IA',
+        backgroundColor: AppColors.gold,
+        foregroundColor: AppColors.darkGreen,
+        onPressed: () => _goTo(3),
+        child: const Icon(Icons.smart_toy_outlined),
+      ),
       child: pages[_index],
     );
   }

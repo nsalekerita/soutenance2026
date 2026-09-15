@@ -14,6 +14,9 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final _api = ApiClient.instance;
+  final _scrollController = ScrollController();
+  final _heroKey = GlobalKey();
+  final _annoncesKey = GlobalKey();
   List<dynamic> _recentOffres = [];
   bool _loading = true;
   int _totalJobs = 0;
@@ -23,13 +26,25 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     _loadData();
   }
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _scrollTo(GlobalKey key) {
+    final ctx = key.currentContext;
+    if (ctx != null) {
+      Scrollable.ensureVisible(ctx, duration: const Duration(milliseconds: 400), curve: Curves.easeInOut);
+    }
+  }
 
   Future<void> _loadData() async {
     setState(() => _loading = true);
     try {
       // On récupère les offres publiques
       final data = await _api.get('/offres', auth: false);
-      if (data is List) {
+      if (mounted && data is List) {
         setState(() {
           _recentOffres = data.take(3).toList();
           _totalJobs = data.length;
@@ -38,7 +53,7 @@ class _HomeScreenState extends State<HomeScreen> {
     } catch (e) {
       debugPrint('Erreur chargement home publique: $e');
     } finally {
-      setState(() => _loading = false);
+      if (mounted) setState(() => _loading = false);
     }
   }
 
@@ -53,14 +68,22 @@ class _HomeScreenState extends State<HomeScreen> {
         child: RefreshIndicator(
           onRefresh: _loadData,
           child: SingleChildScrollView(
+            controller: _scrollController,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 _TopBar(isWide: isWide),
-                _NavBar(isWide: isWide),
-                _HeroSection(isWide: isWide),
+                _NavBar(
+                  isWide: isWide,
+                  onAccueil: () => _scrollTo(_heroKey),
+                  onOffres: () => _scrollTo(_annoncesKey),
+                ),
+                KeyedSubtree(key: _heroKey, child: _HeroSection(isWide: isWide)),
                 _ExploreSection(isWide: isWide, totalJobs: _totalJobs),
-                _AnnouncementsSection(isWide: isWide, offres: _recentOffres, loading: _loading),
+                KeyedSubtree(
+                  key: _annoncesKey,
+                  child: _AnnouncementsSection(isWide: isWide, offres: _recentOffres, loading: _loading),
+                ),
                 _JoinSection(isWide: isWide),
                 _Footer(isWide: isWide),
               ],
@@ -80,32 +103,37 @@ class _TopBar extends StatelessWidget {
   const _TopBar({required this.isWide});
   @override
   Widget build(BuildContext context) {
+    final isCompact = MediaQuery.of(context).size.width < 520;
     return Container(
       color: AppColors.white,
       padding: EdgeInsets.symmetric(horizontal: isWide ? 32 : 16, vertical: 12),
-      child: Row(
-        children: [
-          Expanded(
-            flex: isWide ? 3 : 2,
-            child: const Align(alignment: Alignment.centerLeft, child: _InstituteLogo()),
-          ),
-          Expanded(
-            flex: isWide ? 4 : 3,
-            child: const Center(child: _HorizonWordmark()),
-          ),
-          Expanded(
-            flex: isWide ? 3 : 2,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.end,
+      child: isCompact
+          ? const Column(
               children: [
-                const Expanded(child: _SearchBar()),
-                const SizedBox(width: 12),
-                if (isWide) const _LanguageSwitcher(),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [_InstituteLogo(), _HorizonWordmark()],
+                ),
+                SizedBox(height: 12),
+                _SearchBar(),
+              ],
+            )
+          : Row(
+              children: [
+                Expanded(
+                  flex: isWide ? 3 : 2,
+                  child: const Align(alignment: Alignment.centerLeft, child: _InstituteLogo()),
+                ),
+                Expanded(
+                  flex: isWide ? 4 : 3,
+                  child: const Center(child: _HorizonWordmark()),
+                ),
+                Expanded(
+                  flex: isWide ? 3 : 2,
+                  child: const _SearchBar(),
+                ),
               ],
             ),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -138,25 +166,6 @@ class _SearchBar extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _LanguageSwitcher extends StatelessWidget {
-  const _LanguageSwitcher();
-  @override
-  Widget build(BuildContext context) {
-    return DropdownButtonHideUnderline(
-      child: DropdownButton<String>(
-        value: 'FR',
-        icon: const Icon(Icons.keyboard_arrow_down, size: 16),
-        style: const TextStyle(fontSize: 12, color: AppColors.darkGreen, fontWeight: FontWeight.w600),
-        items: const [
-          DropdownMenuItem(value: 'FR', child: Text('Français')),
-          DropdownMenuItem(value: 'EN', child: Text('English')),
-        ],
-        onChanged: (_) {},
       ),
     );
   }
@@ -224,38 +233,90 @@ class _InstituteLogo extends StatelessWidget {
 // ------------------------------------------------------------------------
 class _NavBar extends StatelessWidget {
   final bool isWide;
-  const _NavBar({required this.isWide});
+  final VoidCallback onAccueil;
+  final VoidCallback onOffres;
+  const _NavBar({required this.isWide, required this.onAccueil, required this.onOffres});
   @override
   Widget build(BuildContext context) {
     final items = <_NavItem>[
-      const _NavItem('Accueil'),
-      const _NavItem('À propos'),
-      const _NavItem('Offres & stages'),
-      const _NavItem('Orientation métiers'),
+      _NavItem('Accueil', onAccueil),
+      _NavItem('Offres & stages', onOffres),
     ];
     return Container(
       color: AppColors.darkGreen,
-      padding: EdgeInsets.symmetric(horizontal: isWide ? 32 : 12, vertical: 10),
+      padding: EdgeInsets.symmetric(horizontal: isWide ? 32 : 8, vertical: 10),
       child: isWide
           ? Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           ...items,
           const SizedBox(width: 32),
+          const _LanguageAction(),
+          const SizedBox(width: 16),
           _AuthAction(label: 'Se connecter', filled: false, onTap: () => context.go('/auth/login')),
           const SizedBox(width: 12),
           _AuthAction(label: "S'inscrire", filled: true, onTap: () => context.go('/auth')),
         ],
       )
-          : SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
+          // Sur mobile : un seul bouton d'action reste visible (S'inscrire, le CTA
+          // principal). Accueil, Offres et Se connecter passent dans le menu
+          // hamburger pour que rien ne soit jamais coupé ou caché par un scroll.
+          : Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          PopupMenuButton<VoidCallback>(
+            icon: const Icon(Icons.menu, color: AppColors.white),
+            color: AppColors.white,
+            onSelected: (callback) => callback(),
+            itemBuilder: (context) => [
+              PopupMenuItem(value: onAccueil, child: const Text('Accueil')),
+              PopupMenuItem(value: onOffres, child: const Text('Offres & stages')),
+              PopupMenuItem(value: () => context.go('/auth/login'), child: const Text('Se connecter')),
+            ],
+          ),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const _LanguageAction(),
+              const SizedBox(width: 6),
+              _AuthAction(label: "S'inscrire", filled: true, compact: true, onTap: () => context.go('/auth')),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Sélecteur de langue (UI uniquement pour l'instant : l'app n'a pas encore
+/// de système de traduction intl/ARB, donc "English" affiche une notice au
+/// lieu de traduire silencieusement une partie seulement de l'app).
+class _LanguageAction extends StatelessWidget {
+  const _LanguageAction();
+  @override
+  Widget build(BuildContext context) {
+    return PopupMenuButton<String>(
+      color: AppColors.white,
+      tooltip: 'Langue',
+      onSelected: (lang) {
+        if (lang == 'en') {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('English version coming soon.')),
+          );
+        }
+      },
+      itemBuilder: (context) => const [
+        PopupMenuItem(value: 'fr', child: Text('Français')),
+        PopupMenuItem(value: 'en', child: Text('English')),
+      ],
+      child: const Padding(
+        padding: EdgeInsets.symmetric(horizontal: 6, vertical: 4),
         child: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            ...items,
-            const SizedBox(width: 16),
-            _AuthAction(label: 'Se connecter', filled: false, onTap: () => context.go('/auth/login')),
-            const SizedBox(width: 8),
-            _AuthAction(label: "S'inscrire", filled: true, onTap: () => context.go('/auth')),
+            Icon(Icons.language, color: AppColors.white, size: 18),
+            SizedBox(width: 2),
+            Text('FR', style: TextStyle(color: AppColors.white, fontSize: 12, fontWeight: FontWeight.w600)),
           ],
         ),
       ),
@@ -265,13 +326,14 @@ class _NavBar extends StatelessWidget {
 
 class _NavItem extends StatelessWidget {
   final String label;
-  const _NavItem(this.label);
+  final VoidCallback onTap;
+  const _NavItem(this.label, this.onTap);
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 14),
       child: InkWell(
-        onTap: () {},
+        onTap: onTap,
         child: Text(label, style: const TextStyle(color: AppColors.white, fontSize: 13, fontWeight: FontWeight.w500)),
       ),
     );
@@ -281,8 +343,9 @@ class _NavItem extends StatelessWidget {
 class _AuthAction extends StatelessWidget {
   final String label;
   final bool filled;
+  final bool compact;
   final VoidCallback onTap;
-  const _AuthAction({required this.label, required this.filled, required this.onTap});
+  const _AuthAction({required this.label, required this.filled, required this.onTap, this.compact = false});
   @override
   Widget build(BuildContext context) {
     if (filled) {
@@ -291,16 +354,17 @@ class _AuthAction extends StatelessWidget {
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.gold,
           foregroundColor: AppColors.darkGreen,
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+          padding: EdgeInsets.symmetric(horizontal: compact ? 12 : 18, vertical: 8),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+          textStyle: TextStyle(fontSize: compact ? 12 : 13, fontWeight: FontWeight.w600),
         ),
         child: Text(label),
       );
     }
     return TextButton(
       onPressed: onTap,
-      child: Text(label, style: const TextStyle(color: AppColors.gold, fontSize: 13, fontWeight: FontWeight.w600)),
+      style: compact ? TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 6)) : null,
+      child: Text(label, style: TextStyle(color: AppColors.gold, fontSize: compact ? 12 : 13, fontWeight: FontWeight.w600)),
     );
   }
 }
@@ -333,7 +397,9 @@ class _HeroSection extends StatelessWidget {
           style: TextStyle(fontSize: 14, color: AppColors.textMuted, height: 1.6),
         ),
         const SizedBox(height: 20),
-        Row(
+        Wrap(
+          spacing: 12,
+          runSpacing: 12,
           children: [
             ElevatedButton(
               onPressed: () => context.go('/auth'),
@@ -345,7 +411,6 @@ class _HeroSection extends StatelessWidget {
               ),
               child: const Text('Commencer'),
             ),
-            const SizedBox(width: 12),
             OutlinedButton(
               onPressed: () {},
               style: OutlinedButton.styleFrom(
@@ -526,12 +591,12 @@ class _Announcement extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                    color: isStage ? const Color(0xFFEAF3DE) : const Color(0xFFE1F5EE),
+                    color: isStage ? AppColors.badgeStage : AppColors.badgeEmploi,
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Text(
                     isStage ? 'Stage' : 'Emploi',
-                    style: TextStyle(fontSize: 10, color: isStage ? AppColors.darkGreen : const Color(0xFF04342C), fontWeight: FontWeight.w600),
+                    style: TextStyle(fontSize: 10, color: isStage ? AppColors.darkGreen : AppColors.badgeEmploiText, fontWeight: FontWeight.w600),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -541,7 +606,12 @@ class _Announcement extends StatelessWidget {
                   children: [
                     const Icon(Icons.location_on_outlined, size: 13, color: AppColors.textMuted),
                     const SizedBox(width: 4),
-                    Text(offre['localisation'] ?? 'Cameroun', style: const TextStyle(fontSize: 12, color: AppColors.textMuted)),
+                    Expanded(
+                      child: Text(offre['localisation'] ?? 'Cameroun',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontSize: 12, color: AppColors.textMuted)),
+                    ),
                   ],
                 ),
               ],
@@ -573,7 +643,7 @@ class _JoinSection extends StatelessWidget {
         children: [
           const Text('Rejoins la communauté IAI Horizon', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: AppColors.white)),
           const SizedBox(height: 4),
-          const Text('Quel que soit ton profil, la plateforme a été pensée pour toi', style: TextStyle(fontSize: 13, color: Color(0xFFD7E9DE))),
+          const Text('Quel que soit ton profil, la plateforme a été pensée pour toi', style: TextStyle(fontSize: 13, color: AppColors.mutedOnDark)),
           const SizedBox(height: 20),
           isWide
               ? Row(children: joinCards.map((c) => Expanded(child: Padding(padding: const EdgeInsets.only(right: 16), child: c))).toList())
@@ -624,7 +694,7 @@ class _Footer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: const Color(0xFF2C2C2A),
+      color: AppColors.footerBackground,
       padding: EdgeInsets.symmetric(horizontal: isWide ? 32 : 16, vertical: 28),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -633,14 +703,14 @@ class _Footer extends StatelessWidget {
           const SizedBox(height: 10),
           const Text(
             "Plateforme intelligente d'orientation et d'insertion professionnelle pour l'IAI-Cameroun.",
-            style: TextStyle(fontSize: 12, color: Color(0xFFB4B2A9), height: 1.6),
+            style: TextStyle(fontSize: 12, color: AppColors.footerText, height: 1.6),
           ),
           const SizedBox(height: 24),
-          const Divider(color: Color(0xFF444441)),
+          const Divider(color: AppColors.footerDivider),
           const SizedBox(height: 12),
           const Text(
             "© 2026 IAI Horizon — Institut Africain d'Informatique, Cameroun. Tous droits réservés.",
-            style: TextStyle(fontSize: 11, color: Color(0xFF888780)),
+            style: TextStyle(fontSize: 11, color: AppColors.footerTextMuted),
           ),
         ],
       ),
