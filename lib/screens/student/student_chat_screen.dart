@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../../core/services/api_client.dart';
 import '../../theme/app_colors.dart';
 
-/// Cas d'utilisation "Discuter" : chat avec l'assistant IA (Claude côté backend).
+/// Cas d'utilisation "Discuter" : chat avec l'assistant IA (Gemini côté backend).
 class StudentChatScreen extends StatefulWidget {
   const StudentChatScreen({super.key});
 

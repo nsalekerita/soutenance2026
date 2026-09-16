@@ -72,14 +72,29 @@ class _RegisterScreenState extends State<RegisterScreen> {
         );
       }
       if (!mounted) return;
-      // Après inscription, l'utilisateur doit vérifier son e-mail via un code OTP
-      // avant de pouvoir se connecter.
+      // L'OTP valide l'adresse pendant le parcours de création du compte.
       context.go('/auth/otp?email=${Uri.encodeComponent(_email.text.trim())}');
     } on ApiException catch (e) {
       setState(() => _error = e.message);
     } catch (_) {
       setState(
           () => _error = "Une erreur est survenue. Vérifiez votre connexion.");
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _google() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      await context.read<AuthProvider>().loginWithGoogle(role: widget.role);
+      if (!mounted) return;
+      context.go(isEtudiant ? '/etudiant' : '/entreprise');
+    } catch (e) {
+      if (mounted) setState(() => _error = friendlyApiError(e));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -328,6 +343,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                       style: TextStyle(
                                           fontSize: 16,
                                           fontWeight: FontWeight.bold)),
+                            ),
+                            const SizedBox(height: 12),
+                            OutlinedButton.icon(
+                              onPressed: _loading ? null : _google,
+                              icon: const Icon(Icons.login),
+                              label: const Text('Continuer avec Google'),
+                              style: OutlinedButton.styleFrom(minimumSize: const Size(double.infinity, 52)),
                             ),
 
                             const SizedBox(height: 24),
