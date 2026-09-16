@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+
 import 'api_client.dart';
 import 'push_notification_service.dart';
 
@@ -129,6 +131,24 @@ class AuthProvider extends ChangeNotifier {
       auth: false,
     );
 
+    await _afterAuthSuccess(data);
+  }
+
+  Future<void> loginWithGoogle({required String role}) async {
+    const googleClientId = String.fromEnvironment('GOOGLE_CLIENT_ID');
+    final account = await GoogleSignIn(
+      scopes: const ['email'],
+      clientId: kIsWeb && googleClientId.isNotEmpty ? googleClientId : null,
+      serverClientId: !kIsWeb && googleClientId.isNotEmpty ? googleClientId : null,
+    ).signIn();
+    if (account == null) throw ApiException('Connexion Google annulée.', 0);
+    final authentication = await account.authentication;
+    final idToken = authentication.idToken;
+    if (idToken == null) throw ApiException('Jeton Google indisponible.', 0);
+    final data = await _api.post('/auth/google', {
+      'idToken': idToken,
+      'role': role,
+    }, auth: false);
     await _afterAuthSuccess(data);
   }
 

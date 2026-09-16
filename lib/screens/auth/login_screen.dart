@@ -55,16 +55,46 @@ class _LoginScreenState extends State<LoginScreen> {
           break;
       }
     } on ApiException catch (e) {
-      if (e.details?['requiresOtp'] == true) {
-        final email = (e.details?['email'] as String?) ?? _email.text.trim();
-        if (mounted)
-          context.go('/auth/otp?email=${Uri.encodeComponent(email)}');
-        return;
-      }
       setState(() => _error = e.message);
     } catch (_) {
       setState(
           () => _error = 'Connexion impossible. Vérifiez vos identifiants.');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _google() async {
+    final role = await showDialog<String>(
+      context: context,
+      builder: (context) => SimpleDialog(
+        title: const Text('Choisissez votre espace'),
+        children: [
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(context, 'etudiant'),
+            child: const Text('Étudiant'),
+          ),
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(context, 'entreprise'),
+            child: const Text('Entreprise'),
+          ),
+        ],
+      ),
+    );
+    if (role == null || !mounted) return;
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final auth = context.read<AuthProvider>();
+      await auth.loginWithGoogle(role: role);
+      if (!mounted) return;
+      context.go(auth.user?.role == UserRole.entreprise
+          ? '/entreprise'
+          : '/etudiant');
+    } catch (e) {
+      if (mounted) setState(() => _error = friendlyApiError(e));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -292,6 +322,13 @@ class _LoginScreenState extends State<LoginScreen> {
                       : const Text('Se connecter',
                           style: TextStyle(
                               fontSize: 16, fontWeight: FontWeight.bold)),
+                ),
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: _loading ? null : _google,
+                  icon: const Icon(Icons.login),
+                  label: const Text('Continuer avec Google'),
+                  style: OutlinedButton.styleFrom(minimumSize: const Size(double.infinity, 52)),
                 ),
                 const SizedBox(height: 32),
                 Center(

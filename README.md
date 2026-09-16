@@ -10,6 +10,8 @@
    ```bash
    flutter run --dart-define=API_BASE_URL=http://10.0.2.2:4000/api
    ```
+   Pour Google Sign-In, ajoute aussi
+   `--dart-define=GOOGLE_CLIENT_ID=<client-id-oauth>`.
     - Appareil physique : remplace par l'IP locale de ton PC (`http://192.168.x.x:4000/api`).
     - iOS simulator / web : `http://localhost:4000/api`.
 
@@ -38,24 +40,15 @@ lib/
 
 1. **Splash** : logo qui tourne sur fond dégradé vert institutionnel (~2.4s) → page d'accueil.
 2. **Accueil** : bouton "S'inscrire"/"Se connecter" → écran de choix Étudiant / Entreprise.
-3. Choix du rôle → formulaire d'inscription (ou connexion) avec bouton Google (à finaliser,
-   voir ci-dessous) → à la validation, le backend crée le compte et renvoie un token, l'app
+3. Choix du rôle → formulaire d'inscription ou connexion, y compris avec Google. Une inscription
+   classique passe une seule fois par la validation OTP ; une connexion ultérieure ne la redemande pas.
+   Le backend crée ensuite le compte et renvoie un token, et l'app
    redirige automatiquement vers **le bon dashboard selon le rôle** (étudiant / entreprise / admin
    — l'admin n'a pas d'auto-inscription, un compte doit être créé manuellement en base).
 
-## Ce qui reste à brancher pour une version 100% finalisée
+## Configuration externe nécessaire
 
-- **Google Sign-In réel** : le package `google_sign_in` est dans `pubspec.yaml` mais l'appel
-  n'est pas câblé (boutons "Continuer avec Google" affichent un message temporaire). Il faut :
-    1. Configurer un `Client ID` OAuth (Google Cloud Console) pour Android/iOS/Web.
-    2. Dans `register_screen.dart`/`login_screen.dart`, remplacer le `onPressed` du bouton Google
-       par un appel `GoogleSignIn().signIn()`, récupérer le `idToken`, puis
-       `POST /api/auth/google { idToken, role }`.
-- **Upload de CV réel** : `file_picker` est dans `pubspec.yaml`. Dans `student_profile_screen.dart`,
-  remplacer le `TODO` par : choix du fichier → `POST /profils/moi/cv/upload-url` → `PUT` du fichier
-  vers l'URL signée renvoyée par Supabase Storage.
-- **Image du logo/hero** : remplace le `Container` placeholder de la section Hero
-  (`home_screen.dart`) par `DecorationImage(image: AssetImage('assets/image/imgyde.png'))`
-  une fois l'image ajoutée dans `assets/image/`.
-- Écrans encore volontairement simples (à styliser davantage si besoin) :
-  détail d'une offre, gestion des comptes utilisateurs admin, contact entreprise↔étudiant.
+- Configure les identifiants OAuth Google pour chaque plateforme Flutter et
+  renseigne le même client ID dans `GOOGLE_CLIENT_ID` côté backend.
+- Configure Firebase pour les plateformes ciblées afin d'activer les notifications.
+- Crée les buckets Supabase documentés dans le README du backend.
