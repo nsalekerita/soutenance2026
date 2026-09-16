@@ -48,6 +48,7 @@ app.*.map.json
 .env
 .env.*
 !.env.example
+dart_defines.json
 **/android/key.properties
 **/android/**/*.jks
 **/android/**/*.keystore
