@@ -49,7 +49,7 @@ class _EntrepriseChatScreenState extends State<EntrepriseChatScreen> {
       WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(friendlyApiError(e))));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -76,7 +76,7 @@ class _EntrepriseChatScreenState extends State<EntrepriseChatScreen> {
       _messageCtrl.clear();
       await _load();
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur: $e')));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(friendlyApiError(e))));
     } finally {
       if (mounted) setState(() => _sending = false);
     }
@@ -94,7 +94,7 @@ class _EntrepriseChatScreenState extends State<EntrepriseChatScreen> {
         children: [
           Expanded(
             child: _loading
-                ? const Center(child: CircularProgressIndicator())
+                ? const Center(child: CircularProgressIndicator(color: AppColors.gold))
                 : _messages.isEmpty
                     ? const Center(child: Text('Aucun message. Lance la discussion !', style: TextStyle(color: AppColors.textMuted)))
                     : ListView.builder(
@@ -113,6 +113,9 @@ class _EntrepriseChatScreenState extends State<EntrepriseChatScreen> {
                               decoration: BoxDecoration(
                                 color: estMoi ? AppColors.darkGreen : AppColors.white,
                                 borderRadius: BorderRadius.circular(14),
+                                boxShadow: [
+                                  if (!estMoi) BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4, offset: const Offset(0, 2)),
+                                ],
                               ),
                               child: Text(
                                 m['contenu'] ?? '',
@@ -131,24 +134,29 @@ class _EntrepriseChatScreenState extends State<EntrepriseChatScreen> {
                   Expanded(
                     child: TextField(
                       controller: _messageCtrl,
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         hintText: 'Écrire un message...',
-                        border: OutlineInputBorder(),
+                        filled: true,
+                        fillColor: AppColors.white,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide.none),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16),
                       ),
                       onSubmitted: (_) => _envoyer(),
                     ),
                   ),
                   const SizedBox(width: 8),
-                  IconButton.filled(
-                    onPressed: _sending ? null : _envoyer,
-                    style: IconButton.styleFrom(backgroundColor: AppColors.darkGreen),
-                    icon: _sending
-                        ? const SizedBox(
-                            height: 16,
-                            width: 16,
-                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                          )
-                        : const Icon(Icons.send, color: Colors.white),
+                  CircleAvatar(
+                    backgroundColor: AppColors.darkGreen,
+                    child: IconButton(
+                      onPressed: _sending ? null : _envoyer,
+                      icon: _sending
+                          ? const SizedBox(
+                              height: 16,
+                              width: 16,
+                              child: CircularProgressIndicator(color: AppColors.white, strokeWidth: 2),
+                            )
+                          : const Icon(Icons.send, color: AppColors.white, size: 18),
+                    ),
                   ),
                 ],
               ),

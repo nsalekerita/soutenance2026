@@ -48,7 +48,7 @@ class _StudentTestScreenState extends State<StudentTestScreen> {
         setState(() => _resultat = data);
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur: $e')));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(friendlyApiError(e))));
     } finally {
       setState(() => _loading = false);
     }
@@ -104,10 +104,20 @@ class _StudentTestScreenState extends State<StudentTestScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text('Question ${_etape + 1} / ${_questions.length}', style: const TextStyle(color: AppColors.textMuted, fontSize: 12)),
-              const SizedBox(height: 12),
+              const SizedBox(height: 10),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: LinearProgressIndicator(
+                  value: (_etape + 1) / _questions.length,
+                  minHeight: 6,
+                  color: AppColors.gold,
+                  backgroundColor: AppColors.cardGrey,
+                ),
+              ),
+              const SizedBox(height: 20),
               Text(q['label'] as String, textAlign: TextAlign.center, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.textDark)),
               const SizedBox(height: 24),
-              if (_loading) const CircularProgressIndicator() else
+              if (_loading) const CircularProgressIndicator(color: AppColors.gold) else
                 ...((q['options'] as List<String>).map((opt) => Padding(
                   padding: const EdgeInsets.only(bottom: 10),
                   child: SizedBox(

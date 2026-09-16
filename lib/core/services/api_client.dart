@@ -19,9 +19,18 @@ class ApiClient {
   final _storage = const FlutterSecureStorage();
   static const _tokenKey = 'iai_horizon_token';
 
-  Future<String?> get token async => _storage.read(key: _tokenKey);
-  Future<void> saveToken(String token) => _storage.write(key: _tokenKey, value: token);
+  Future<String?> get token async {
+    try {
+      return await _storage.read(key: _tokenKey).timeout(const Duration(seconds: 5));
+    } catch (_) {
+      return null;
+    }
+  }
+  Future<void> saveToken(String token) =>
+      _storage.write(key: _tokenKey, value: token);
   Future<void> clearToken() => _storage.delete(key: _tokenKey);
+
+  static const Duration _timeout = Duration(seconds: 15);
 
   Future<Map<String, String>> _headers({bool auth = true}) async {
     final headers = {'Content-Type': 'application/json'};
@@ -32,40 +41,66 @@ class ApiClient {
     return headers;
   }
 
+  Future<http.Response> _withTimeout(Future<http.Response> request) {
+    return request.timeout(
+      _timeout,
+      onTimeout: () => throw ApiException(
+          'Le serveur met trop de temps à répondre. Réessayez.', 0),
+    );
+  }
+
   Future<dynamic> get(String path, {bool auth = true}) async {
-    final res = await http.get(Uri.parse('$baseUrl$path'), headers: await _headers(auth: auth));
-    return _handle(res);
-  }
-
-  Future<dynamic> post(String path, Map<String, dynamic> body, {bool auth = true}) async {
-    final res = await http.post(
-      Uri.parse('$baseUrl$path'),
-      headers: await _headers(auth: auth),
-      body: jsonEncode(body),
+    final res = await _withTimeout(
+      http.get(Uri.parse('$baseUrl$path'), headers: await _headers(auth: auth)),
     );
     return _handle(res);
   }
 
-  Future<dynamic> patch(String path, Map<String, dynamic> body, {bool auth = true}) async {
-    final res = await http.patch(
-      Uri.parse('$baseUrl$path'),
-      headers: await _headers(auth: auth),
-      body: jsonEncode(body),
+  Future<dynamic> post(String path, Map<String, dynamic> body,
+      {bool auth = true}) async {
+    final res = await _withTimeout(
+      http.post(
+        Uri.parse('$baseUrl$path'),
+        headers: await _headers(auth: auth),
+        body: jsonEncode(body),
+      ),
     );
     return _handle(res);
   }
 
-  Future<dynamic> put(String path, Map<String, dynamic> body, {bool auth = true}) async {
-    final res = await http.put(
-      Uri.parse('$baseUrl$path'),
-      headers: await _headers(auth: auth),
-      body: jsonEncode(body),
+  Future<dynamic> patch(String path, Map<String, dynamic> body,
+      {bool auth = true}) async {
+    final res = await _withTimeout(
+      http.patch(
+        Uri.parse('$baseUrl$path'),
+        headers: await _headers(auth: auth),
+        body: jsonEncode(body),
+      ),
     );
     return _handle(res);
   }
 
-  Future<dynamic> delete(String path, {bool auth = true}) async {
-    final res = await http.delete(Uri.parse('$baseUrl$path'), headers: await _headers(auth: auth));
+  Future<dynamic> put(String path, Map<String, dynamic> body,
+      {bool auth = true}) async {
+    final res = await _withTimeout(
+      http.put(
+        Uri.parse('$baseUrl$path'),
+        headers: await _headers(auth: auth),
+        body: jsonEncode(body),
+      ),
+    );
+    return _handle(res);
+  }
+
+  Future<dynamic> delete(String path,
+      {Map<String, dynamic>? body, bool auth = true}) async {
+    final res = await _withTimeout(
+      http.delete(
+        Uri.parse('$baseUrl$path'),
+        headers: await _headers(auth: auth),
+        body: body != null ? jsonEncode(body) : null,
+      ),
+    );
     return _handle(res);
   }
 
@@ -74,15 +109,31 @@ class ApiClient {
     if (res.statusCode >= 200 && res.statusCode < 300) {
       return decoded is Map ? decoded['data'] : decoded;
     }
-    final message = decoded is Map ? (decoded['message'] ?? 'Erreur inconnue') : 'Erreur inconnue';
-    throw ApiException(message.toString(), res.statusCode);
+    final message = decoded is Map
+        ? (decoded['message'] ?? 'Erreur inconnue')
+        : 'Erreur inconnue';
+    final details = decoded is Map ? decoded['details'] : null;
+    throw ApiException(
+      message.toString(),
+      res.statusCode,
+      details is Map ? Map<String, dynamic>.from(details) : null,
+    );
   }
 }
 
 class ApiException implements Exception {
   final String message;
   final int statusCode;
-  ApiException(this.message, this.statusCode);
+  final Map<String, dynamic>? details;
+  ApiException(this.message, this.statusCode, [this.details]);
   @override
   String toString() => message;
+}
+
+/// Message à afficher à l'utilisateur : le message métier du backend s'il est
+/// disponible, sinon un message générique (on n'expose jamais e.toString()
+/// brut, qui peut contenir des détails techniques internes).
+String friendlyApiError(Object e) {
+  if (e is ApiException) return e.message;
+  return 'Une erreur est survenue. Vérifiez votre connexion et réessayez.';
 }

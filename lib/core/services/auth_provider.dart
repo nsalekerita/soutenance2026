@@ -1,6 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'api_client.dart';
-import 'package:google_sign_in/google_sign_in.dart';
+import 'push_notification_service.dart';
 
 enum UserRole { etudiant, entreprise, administrateur }
 
@@ -33,11 +35,11 @@ class AppUser {
   });
 
   factory AppUser.fromJson(Map<String, dynamic> json) => AppUser(
-    id: json['id'],
-    email: json['email'],
-    role: roleFromString(json['role']),
-    profileId: json['profileId'],
-  );
+        id: json['id'],
+        email: json['email'],
+        role: roleFromString(json['role']),
+        profileId: json['profileId'],
+      );
 }
 
 /// État d'authentification global de l'app, partagé via Provider.
@@ -61,6 +63,7 @@ class AuthProvider extends ChangeNotifier {
       try {
         final data = await _api.get('/auth/me');
         _user = AppUser.fromJson(data);
+        unawaited(PushNotificationService.instance.enregistrerToken());
       } catch (_) {
         await _api.clearToken();
         _user = null;
@@ -84,8 +87,7 @@ class AuthProvider extends ChangeNotifier {
         'nom': nom,
         'prenom': prenom,
         'email': email,
-        if (telephone != null && telephone.isNotEmpty)
-          'telephone': telephone,
+        if (telephone != null && telephone.isNotEmpty) 'telephone': telephone,
         'password': password,
       },
       auth: false,
@@ -105,10 +107,8 @@ class AuthProvider extends ChangeNotifier {
       {
         'nom': nom,
         'email': email,
-        if (telephone != null && telephone.isNotEmpty)
-          'telephone': telephone,
-        if (secteur != null && secteur.isNotEmpty)
-          'secteur': secteur,
+        if (telephone != null && telephone.isNotEmpty) 'telephone': telephone,
+        if (secteur != null && secteur.isNotEmpty) 'secteur': secteur,
         'password': password,
       },
       auth: false,
@@ -132,34 +132,52 @@ class AuthProvider extends ChangeNotifier {
     await _afterAuthSuccess(data);
   }
 
-  // ✅ Google Login doit être À L'INTÉRIEUR de AuthProvider
-  Future<void> loginWithGoogle({
-    required String idToken,
-    required String role,
-  }) async {
-    final data = await _api.post(
-      '/auth/google',
-      {
-        'idToken': idToken,
-        'role': role,
-      },
-      auth: false,
-    );
-
-    await _afterAuthSuccess(data);
-  }
-
   Future<void> _afterAuthSuccess(dynamic data) async {
     await _api.saveToken(data['token']);
 
     _user = AppUser.fromJson(data['user']);
 
     notifyListeners();
+
+    unawaited(PushNotificationService.instance.enregistrerToken());
   }
 
   Future<void> logout() async {
+    await PushNotificationService.instance.supprimerToken();
     await _api.clearToken();
     _user = null;
     notifyListeners();
+  }
+
+  Future<void> renvoyerCodeInscription(String email) async {
+    await _api.post('/auth/otp/renvoyer', {'email': email}, auth: false);
+  }
+
+  Future<void> verifierCodeInscription({
+    required String email,
+    required String code,
+  }) async {
+    final data = await _api.post(
+      '/auth/otp/verifier',
+      {'email': email, 'code': code},
+      auth: false,
+    );
+    await _afterAuthSuccess(data);
+  }
+
+  Future<void> demanderReinitialisationMotDePasse(String email) async {
+    await _api.post('/auth/mot-de-passe/oublie', {'email': email}, auth: false);
+  }
+
+  Future<void> reinitialiserMotDePasse({
+    required String email,
+    required String code,
+    required String nouveauMotDePasse,
+  }) async {
+    await _api.post(
+      '/auth/mot-de-passe/reinitialiser',
+      {'email': email, 'code': code, 'nouveauMotDePasse': nouveauMotDePasse},
+      auth: false,
+    );
   }
 }

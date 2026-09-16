@@ -88,7 +88,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
               const SizedBox(height: 8),
               const Text(
                 "Institut Africain d'Informatique — Cameroun",
-                style: TextStyle(color: Color(0xFFD7E9DE), fontSize: 12),
+                style: TextStyle(color: AppColors.mutedOnDark, fontSize: 12),
               ),
               const SizedBox(height: 28),
               const SizedBox(

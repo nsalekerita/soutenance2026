@@ -20,9 +20,6 @@ dependencies:
   # Réseau (appels vers le backend Node.js)
   http: ^1.2.2
 
-  # Auth Google (à connecter au endpoint /api/auth/google du backend)
-  google_sign_in: ^7.2.0
-
   # Stockage sécurisé du token JWT
   flutter_secure_storage: ^9.2.2
 
@@ -34,6 +31,11 @@ dependencies:
 
   # Ouverture d'URLs (pour les fichiers uploadés)
   url_launcher: ^6.3.0
+
+  # Notifications push (Firebase Cloud Messaging)
+  firebase_core: ^3.8.0
+  firebase_messaging: ^15.1.5
+  flutter_local_notifications: ^18.0.1
 
 dev_dependencies:
   flutter_test:

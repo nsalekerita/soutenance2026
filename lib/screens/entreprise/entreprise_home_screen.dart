@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../core/services/api_client.dart';
 import '../../theme/app_colors.dart';
-import 'entreprise_candidatures_Screen.dart';
+import '../../widgets/app_card.dart';
+import 'entreprise_candidatures_screen.dart';
 
 /// Écran d'accueil de l'espace Entreprise.
 /// Résumé des activités : offres actives, candidatures reçues, et accès rapides.
@@ -17,6 +18,7 @@ class EntrepriseHomeScreen extends StatefulWidget {
 class _EntrepriseHomeScreenState extends State<EntrepriseHomeScreen> {
   final _api = ApiClient.instance;
   bool _loading = true;
+  String? _error;
   Map<String, dynamic> _stats = {
     'offres_actives': 0,
     'total_candidatures': 0,
@@ -31,7 +33,10 @@ class _EntrepriseHomeScreenState extends State<EntrepriseHomeScreen> {
   }
 
   Future<void> _loadData() async {
-    setState(() => _loading = true);
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
       // Dans un vrai projet, on ferait un endpoint /entreprises/stats
       // Ici on simule ou on déduit des offres
@@ -49,6 +54,7 @@ class _EntrepriseHomeScreenState extends State<EntrepriseHomeScreen> {
         }
       }
 
+      if (!mounted) return;
       setState(() {
         _stats = {
           'offres_actives': (offres as List).length,
@@ -60,15 +66,32 @@ class _EntrepriseHomeScreenState extends State<EntrepriseHomeScreen> {
         _recentCandidatures = allCandidatures.take(5).toList();
       });
     } catch (e) {
-      debugPrint('Erreur chargement home entreprise: $e');
+      setState(() => _error = friendlyApiError(e));
     } finally {
-      setState(() => _loading = false);
+      if (mounted) setState(() => _loading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     if (_loading) return const Center(child: CircularProgressIndicator());
+    if (_error != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.error_outline, color: AppColors.error, size: 40),
+              const SizedBox(height: 12),
+              Text(_error!, textAlign: TextAlign.center, style: const TextStyle(color: AppColors.textMuted)),
+              const SizedBox(height: 16),
+              ElevatedButton(onPressed: _loadData, child: const Text('Réessayer')),
+            ],
+          ),
+        ),
+      );
+    }
 
     return RefreshIndicator(
       onRefresh: _loadData,
@@ -87,40 +110,43 @@ class _EntrepriseHomeScreenState extends State<EntrepriseHomeScreen> {
           const SizedBox(height: 24),
 
           // Cartes statistiques
-          Row(
-            children: [
-              Expanded(child: _statCard('Offres actives', '${_stats['offres_actives']}', Icons.work_outline, AppColors.darkGreen)),
-              const SizedBox(width: 12),
-              Expanded(child: _statCard('Candidats', '${_stats['total_candidatures']}', Icons.people_outline, AppColors.gold)),
-              const SizedBox(width: 12),
-              Expanded(child: _statCard('À traiter', '${_stats['nouvelles_candidatures']}', Icons.notification_important_outlined, Colors.orange)),
-            ],
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final cards = [
+                _statCard('Offres actives', '${_stats['offres_actives']}', Icons.work_outline, AppColors.darkGreen),
+                _statCard('Candidats', '${_stats['total_candidatures']}', Icons.people_outline, AppColors.gold),
+                _statCard('À traiter', '${_stats['nouvelles_candidatures']}', Icons.notification_important_outlined, AppColors.warning),
+              ];
+              final columns = constraints.maxWidth < 520 ? 1 : 3;
+              return GridView.count(
+                crossAxisCount: columns,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+                childAspectRatio: columns == 1 ? 3.5 : 1.05,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                children: cards,
+              );
+            },
           ),
           const SizedBox(height: 24),
 
           // Actions rapides
           const Text('Actions rapides', style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.darkGreen, fontSize: 15)),
           const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: _quickAction(
-                  Icons.add_circle_outline,
-                  'Publier',
-                  'Nouvelle offre',
-                  () => widget.onNavigate(2),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _quickAction(
-                  Icons.list_alt_outlined,
-                  'Mes offres',
-                  'Gérer le contenu',
-                  () => widget.onNavigate(1),
-                ),
-              ),
-            ],
+          LayoutBuilder(
+            builder: (context, constraints) => GridView.count(
+              crossAxisCount: constraints.maxWidth < 420 ? 1 : 2,
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
+              childAspectRatio: constraints.maxWidth < 420 ? 4.2 : 2.2,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              children: [
+                _quickAction(Icons.add_circle_outline, 'Publier', 'Nouvelle offre', () => widget.onNavigate(2)),
+                _quickAction(Icons.list_alt_outlined, 'Mes offres', 'Gérer le contenu', () => widget.onNavigate(1)),
+              ],
+            ),
           ),
           const SizedBox(height: 24),
 
@@ -142,71 +168,62 @@ class _EntrepriseHomeScreenState extends State<EntrepriseHomeScreen> {
     );
   }
 
-  Widget _statCard(String label, String value, IconData icon, Color color) => Container(
-    padding: const EdgeInsets.all(16),
-    decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(14)),
+  Widget _statCard(String label, String value, IconData icon, Color color) => AppCard(
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
       children: [
         Icon(icon, color: color, size: 20),
         const SizedBox(height: 8),
-        Text(value, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.textDark)),
-        Text(label, style: const TextStyle(fontSize: 10, color: AppColors.textMuted)),
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: Text(value, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.textDark)),
+        ),
+        Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 10, color: AppColors.textMuted)),
       ],
     ),
   );
 
-  Widget _quickAction(IconData icon, String title, String subtitle, VoidCallback onTap) => InkWell(
+  Widget _quickAction(IconData icon, String title, String subtitle, VoidCallback onTap) => AppCard(
+    padding: const EdgeInsets.all(14),
     onTap: onTap,
-    borderRadius: BorderRadius.circular(14),
-    child: Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(14)),
-      child: Row(
-        children: [
-          CircleAvatar(backgroundColor: AppColors.sage, child: Icon(icon, color: AppColors.darkGreen, size: 20)),
-          const SizedBox(width: 12),
-          Column(
+    child: Row(
+      children: [
+        CircleAvatar(backgroundColor: AppColors.sage, child: Icon(icon, color: AppColors.darkGreen, size: 20)),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: AppColors.textDark)),
-              Text(subtitle, style: const TextStyle(fontSize: 10, color: AppColors.textMuted)),
+              Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: AppColors.textDark)),
+              Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 10, color: AppColors.textMuted)),
             ],
           ),
-        ],
-      ),
+        ),
+      ],
     ),
   );
 
   Widget _candidatureTile(dynamic c) {
     final statut = c['statut'] ?? 'en_attente';
+    final isEnAttente = statut == 'en_attente';
+    final statutColor = isEnAttente ? AppColors.warning : AppColors.success;
+    final statutBackground = isEnAttente ? AppColors.warningBackground : AppColors.successBackground;
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(12)),
-      child: ListTile(
+      child: AppCard(
+        padding: const EdgeInsets.all(12),
+        child: ListTile(
         contentPadding: EdgeInsets.zero,
         leading: CircleAvatar(
           backgroundColor: AppColors.gold.withOpacity(0.2),
           child: Text((c['nom'] ?? '?')[0].toUpperCase(), style: const TextStyle(color: AppColors.textDark, fontWeight: FontWeight.bold)),
         ),
-        title: Text('${c['nom']} ${c['prenom']}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-        subtitle: Text('Poste: ${c['offres']?['titre'] ?? 'N/A'}', style: const TextStyle(fontSize: 12)),
-        trailing: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          decoration: BoxDecoration(
-            color: (statut == 'en_attente' ? Colors.orange : AppColors.darkGreen).withOpacity(0.1),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Text(
-            statut,
-            style: TextStyle(
-              fontSize: 10,
-              color: statut == 'en_attente' ? Colors.orange : AppColors.darkGreen,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ),
+        title: Text('${c['nom']} ${c['prenom']}', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+        subtitle: Text('Poste: ${c['offres']?['titre'] ?? 'N/A'}', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12)),
+        trailing: StatusBadge(label: statut, color: statutColor, background: statutBackground),
         onTap: () {
           Navigator.of(context).push(
             MaterialPageRoute(
@@ -217,6 +234,7 @@ class _EntrepriseHomeScreenState extends State<EntrepriseHomeScreen> {
             ),
           );
         },
+        ),
       ),
     );
   }

@@ -44,7 +44,7 @@ class _EntrepriseEtudiantsScreenState extends State<EntrepriseEtudiantsScreen> {
       });
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(friendlyApiError(e))));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -173,10 +173,10 @@ class _EntrepriseEtudiantsScreenState extends State<EntrepriseEtudiantsScreen> {
 
   Color _statutColor(String statut) {
     switch (statut) {
-      case 'acceptee': return Colors.green;
-      case 'refusee': return Colors.red;
-      case 'envoyee': return Colors.blue;
-      default: return Colors.orange;
+      case 'acceptee': return AppColors.success;
+      case 'refusee': return AppColors.error;
+      case 'envoyee': return AppColors.info;
+      default: return AppColors.warning;
     }
   }
 }
@@ -199,7 +199,7 @@ class _ProfilCandidatSheet extends StatelessWidget {
       builder: (context, scrollCtrl) {
         return Container(
           decoration: const BoxDecoration(
-            color: Color(0xFFF5F7F6),
+            color: AppColors.background,
             borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
           ),
           child: ListView(

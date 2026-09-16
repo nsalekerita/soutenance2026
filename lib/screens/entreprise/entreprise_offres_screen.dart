@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../core/services/api_client.dart';
 import '../../theme/app_colors.dart';
-import 'entreprise_candidatures_Screen.dart';
+import '../../widgets/app_card.dart';
+import 'entreprise_candidatures_screen.dart';
 import 'entreprise_publier_screen.dart';
 
 /// Liste des offres de l'entreprise + accès aux candidatures reçues + gestion (edit/delete).
@@ -31,7 +32,7 @@ class _EntrepriseOffresScreenState extends State<EntrepriseOffresScreen> {
       setState(() => _offres = data is List<dynamic> ? data : <dynamic>[]);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(friendlyApiError(e))));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -47,7 +48,7 @@ class _EntrepriseOffresScreenState extends State<EntrepriseOffresScreen> {
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text("Annuler")),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            style: TextButton.styleFrom(foregroundColor: AppColors.error),
             child: const Text("Supprimer"),
           ),
         ],
@@ -55,13 +56,16 @@ class _EntrepriseOffresScreenState extends State<EntrepriseOffresScreen> {
     );
 
     if (confirm != true) return;
+    if (!mounted) return;
 
     try {
       await ApiClient.instance.delete('/offres/$id');
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Offre supprimée")));
       _load();
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur: $e')));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(friendlyApiError(e))));
     }
   }
 
@@ -69,13 +73,27 @@ class _EntrepriseOffresScreenState extends State<EntrepriseOffresScreen> {
     switch (statut) {
       case 'validee':
       case 'validée':
-        return Colors.green;
+        return AppColors.success;
       case 'refusee':
       case 'refusée':
-        return Colors.red;
+        return AppColors.error;
       case 'en_attente':
       default:
-        return Colors.orange;
+        return AppColors.warning;
+    }
+  }
+
+  Color _statutBackground(String? statut) {
+    switch (statut) {
+      case 'validee':
+      case 'validée':
+        return AppColors.successBackground;
+      case 'refusee':
+      case 'refusée':
+        return AppColors.errorBackground;
+      case 'en_attente':
+      default:
+        return AppColors.warningBackground;
     }
   }
 
@@ -104,8 +122,7 @@ class _EntrepriseOffresScreenState extends State<EntrepriseOffresScreen> {
           final nbCandidatures = o['nb_candidatures'] ?? o['nombreCandidatures'];
           return Container(
             margin: const EdgeInsets.only(bottom: 12),
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(12)),
+            child: AppCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -113,18 +130,15 @@ class _EntrepriseOffresScreenState extends State<EntrepriseOffresScreen> {
                   children: [
                     Expanded(
                       child: Text(o['titre'] ?? '',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.textDark)),
                     ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: _statutColor(o['statut']).withOpacity(0.12),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        '${o['statut']}',
-                        style: TextStyle(fontSize: 12, color: _statutColor(o['statut']), fontWeight: FontWeight.w600),
-                      ),
+                    const SizedBox(width: 8),
+                    StatusBadge(
+                      label: '${o['statut']}',
+                      color: _statutColor(o['statut']),
+                      background: _statutBackground(o['statut']),
                     ),
                   ],
                 ),
@@ -144,12 +158,13 @@ class _EntrepriseOffresScreenState extends State<EntrepriseOffresScreen> {
                         );
                         if (result == true) _load();
                       },
-                      icon: const Icon(Icons.edit_outlined, color: Colors.blue, size: 20),
+                      icon: const Icon(Icons.edit_outlined, color: AppColors.info, size: 20),
                       tooltip: "Modifier",
                     ),
+                    const SizedBox(width: 12),
                     IconButton(
                       onPressed: () => _supprimerOffre(o['id'].toString()),
-                      icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
+                      icon: const Icon(Icons.delete_outline, color: AppColors.error, size: 20),
                       tooltip: "Supprimer",
                     ),
                     const SizedBox(width: 8),
@@ -166,7 +181,7 @@ class _EntrepriseOffresScreenState extends State<EntrepriseOffresScreen> {
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.darkGreen,
-                        foregroundColor: Colors.white,
+                        foregroundColor: AppColors.white,
                         elevation: 0,
                       ),
                       icon: const Icon(Icons.people_alt_outlined, size: 18),
@@ -175,6 +190,7 @@ class _EntrepriseOffresScreenState extends State<EntrepriseOffresScreen> {
                   ],
                 ),
               ],
+            ),
             ),
           );
         },
