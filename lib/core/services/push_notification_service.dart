@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart' show debugPrint, kIsWeb;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import 'api_client.dart';
@@ -30,6 +30,13 @@ class PushNotificationService {
     if (_initialized) return;
     _initialized = true;
 
+    // Comme pour enregistrerToken()/supprimerToken() : sans
+    // firebase-messaging-sw.js, toute interaction avec FirebaseMessaging sur
+    // le web (y compris juste demander la permission) peut planter côté JS
+    // (ex. "Unexpected token... is not valid JSON" en essayant de charger le
+    // service worker), donc on n'initialise rien de tout ça sur le web.
+    if (kIsWeb) return;
+
     await _localNotifications.initialize(
       const InitializationSettings(
         android: AndroidInitializationSettings('@mipmap/ic_launcher'),
@@ -48,8 +55,13 @@ class PushNotificationService {
   /// À appeler juste après une connexion/inscription réussie : récupère le
   /// token FCM de l'appareil et l'enregistre côté backend pour cet utilisateur.
   Future<void> enregistrerToken() async {
+    // Le web n'a pas de firebase-messaging-sw.js configuré : getToken() peut
+    // rester bloqué indéfiniment (le navigateur attend un service worker qui
+    // n'arrivera jamais). On n'active donc les notifications push que sur
+    // mobile, où le token est ensuite obtenu avec un timeout de sécurité.
+    if (kIsWeb) return;
     try {
-      final token = await _messaging.getToken();
+      final token = await _messaging.getToken().timeout(const Duration(seconds: 10));
       if (token != null) {
         await _api.post('/notifications/device-token', {
           'token': token,
@@ -64,11 +76,16 @@ class PushNotificationService {
   /// À appeler à la déconnexion : évite d'envoyer des notifications d'un
   /// compte à un autre utilisateur qui réutiliserait le même appareil.
   Future<void> supprimerToken() async {
+    // Même garde que enregistrerToken() : sans service worker Firebase sur
+    // le web, getToken() peut ne jamais se résoudre et bloquer la
+    // déconnexion (le bouton "Se déconnecter" semblait alors ne rien faire).
+    if (kIsWeb) return;
     try {
-      final token = await _messaging.getToken();
+      final token = await _messaging.getToken().timeout(const Duration(seconds: 10));
       if (token != null) {
         await _api
-            .delete('/notifications/device-token', body: {'token': token});
+            .delete('/notifications/device-token', body: {'token': token})
+            .timeout(const Duration(seconds: 10));
       }
     } catch (e) {
       debugPrint('Échec suppression token FCM: $e');

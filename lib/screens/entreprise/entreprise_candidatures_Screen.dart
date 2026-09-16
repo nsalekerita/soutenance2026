@@ -259,12 +259,6 @@ class _EntrepriseCandidaturesScreenState
                               Text(
                                   'Filière: ${c['filiere'] ?? etudiant['filiere']}',
                                   style: const TextStyle(fontSize: 13)),
-                            if (c['niveau_etudes'] != null)
-                              Text('Niveau: ${c['niveau_etudes']}',
-                                  style: const TextStyle(fontSize: 13)),
-                            if (c['universite'] != null)
-                              Text('École: ${c['universite']}',
-                                  style: const TextStyle(fontSize: 13)),
                             const Divider(height: 24),
                             const Text('Pièces jointes :',
                                 style: TextStyle(
@@ -277,13 +271,9 @@ class _EntrepriseCandidaturesScreenState
                                   _fileButton('CV', c['cv_url']),
                                 if (c['lettre_motivation_url'] != null)
                                   _fileButton('LM', c['lettre_motivation_url']),
-                                if (c['releve_notes_url'] != null)
-                                  _fileButton('Notes', c['releve_notes_url']),
                                 if (c['lettre_recommandation_url'] != null)
                                   _fileButton(
                                       'Rec.', c['lettre_recommandation_url']),
-                                if (c['cni_url'] != null)
-                                  _fileButton('CNI', c['cni_url']),
                               ],
                             ),
                             const SizedBox(height: 12),
@@ -366,30 +356,18 @@ class _EntrepriseCandidaturesScreenState
               mainAxisSize: MainAxisSize.min,
               children: [
                 _detailSection(
-                    'Informations Personnelles',
-                    'Genre: ${c['genre'] ?? 'Non précisé'}\n'
-                        'Né(e) le: ${c['date_naissance'] ?? 'Non précisé'}\n'
-                        'Nationalité: ${c['nationalite'] ?? 'Non précisée'}\n'
-                        'Adresse: ${c['adresse_complete'] ?? 'Non précisée'}'),
-                const SizedBox(height: 16),
-                _detailSection(
-                    'Informations Académiques',
-                    'Université: ${c['universite'] ?? 'Non précisée'}\n'
-                        'Filière: ${c['filiere'] ?? 'Non précisée'}\n'
-                        'Niveau: ${c['niveau_etudes'] ?? 'Non précisé'} (${c['annee_etude'] ?? ''})'),
+                    'Filière',
+                    '${c['filiere'] ?? etudiant['filiere'] ?? 'Non précisée'}'
+                        '${(c['specialite'] ?? etudiant['specialite']) != null ? ' (${c['specialite'] ?? etudiant['specialite']})' : ''}'),
                 const SizedBox(height: 16),
                 _detailSection('Motivation / Message',
                     c['message'] ?? 'Aucun message fourni.'),
                 const SizedBox(height: 16),
                 _detailSection(
-                    'Disponibilité',
-                    'Début: ${c['date_disponibilite'] ?? 'Non précisée'}\n'
-                        'Durée: ${c['duree_souhaitee'] ?? 'Non précisée'}'),
-                const SizedBox(height: 16),
-                _detailSection(
                     'Contact',
-                    'Email: ${c['email'] ?? 'Non fourni'}\n'
-                        'Tél: ${c['telephone_contact'] ?? 'Non fourni'}'),
+                    'Email: ${c['email_contact'] ?? 'Non fourni'}\n'
+                        'Tél: ${c['telephone_contact'] ?? 'Non fourni'}\n'
+                        'Localisation: ${c['localisation'] ?? 'Non précisée'}'),
                 const SizedBox(height: 16),
                 const Text('Documents joints',
                     style: TextStyle(fontWeight: FontWeight.bold)),
@@ -402,12 +380,9 @@ class _EntrepriseCandidaturesScreenState
                     if (c['lettre_motivation_url'] != null)
                       _fileButton(
                           'Lettre de motivation', c['lettre_motivation_url']),
-                    if (c['releve_notes_url'] != null)
-                      _fileButton('Relevé de notes', c['releve_notes_url']),
                     if (c['lettre_recommandation_url'] != null)
                       _fileButton('Lettre de recommandation',
                           c['lettre_recommandation_url']),
-                    if (c['cni_url'] != null) _fileButton('CNI', c['cni_url']),
                   ],
                 ),
               ],
